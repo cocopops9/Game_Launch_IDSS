@@ -17,9 +17,13 @@ import lightgbm as lgb
 import seaborn as sns
 import matplotlib.pyplot as plt
 from pathlib import Path
+import json
 
 # Import data loader
 from data_loader import SteamDataLoader
+
+# Constants
+SAVED_GAMES_FILE = "saved_games.json"
 
 # Set page configuration
 st.set_page_config(
@@ -28,6 +32,32 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Helper functions for persistence
+def save_games_to_file():
+    """Save games and configurations to JSON file"""
+    try:
+        data = {
+            'saved_games': st.session_state.saved_games,
+            'configurations': st.session_state.configurations
+        }
+        with open(SAVED_GAMES_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving games: {e}")
+
+def load_games_from_file():
+    """Load games and configurations from JSON file"""
+    try:
+        if os.path.exists(SAVED_GAMES_FILE):
+            with open(SAVED_GAMES_FILE, 'r') as f:
+                data = json.load(f)
+                st.session_state.saved_games = data.get('saved_games', {})
+                st.session_state.configurations = data.get('configurations', [])
+                return True
+    except Exception as e:
+        st.error(f"Error loading games: {e}")
+    return False
 
 # Initialize session state
 if 'saved_games' not in st.session_state:
@@ -40,6 +70,12 @@ if 'data_analysis' not in st.session_state:
     st.session_state.data_analysis = {}
 if 'configurations' not in st.session_state:
     st.session_state.configurations = []  # List of all saved configurations
+if 'games_loaded' not in st.session_state:
+    st.session_state.games_loaded = False
+    load_games_from_file()
+    st.session_state.games_loaded = True
+if 'selected_game' not in st.session_state:
+    st.session_state.selected_game = None
 
 # Custom CSS
 st.markdown("""
@@ -365,26 +401,29 @@ def save_game_configuration(game_name, features, predictions):
     # Generate unique name if duplicate exists
     original_name = game_name
     counter = 1
-    
+
     # Check if game already exists in saved games
     if original_name not in st.session_state.saved_games:
         st.session_state.saved_games[original_name] = []
-    
+
     # Create configuration entry
     config = {
         'config_id': f"{original_name}_config_{len(st.session_state.saved_games[original_name]) + 1}",
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'game_name': original_name,
-        'features': features.copy(),
-        'predictions': predictions.copy()
+        'features': features.copy() if isinstance(features, dict) else features,
+        'predictions': predictions.copy() if isinstance(predictions, dict) else predictions
     }
-    
+
     # Add to game's configurations
     st.session_state.saved_games[original_name].append(config)
-    
+
     # Also add to global configurations list for ranking
     st.session_state.configurations.append(config)
-    
+
+    # Persist to file
+    save_games_to_file()
+
     return original_name
 
 # Page functions
@@ -581,97 +620,198 @@ def new_game_page():
 def my_games_page():
     """My Games page - view and manage saved configurations"""
     st.markdown('<h2 class="sub-header">📚 My Saved Games & Configurations</h2>', unsafe_allow_html=True)
-    
+
     if not st.session_state.saved_games:
         st.info("No saved games yet. Go to 'New Game' to create and save game configurations.")
         return
-    
-    # Display games and their configurations
-    st.subheader("🎮 Saved Games")
-    
-    for game_name, configs in st.session_state.saved_games.items():
-        with st.expander(f"📁 {game_name} ({len(configs)} configurations)"):
-            for idx, config in enumerate(configs, 1):
-                col1, col2, col3, col4 = st.columns([1, 2, 2, 2])
-                
-                with col1:
-                    st.write(f"**Config #{idx}**")
-                
-                with col2:
-                    st.write(f"💰 ${config['features']['price']:.2f}")
+
+    # Create tabs for different views
+    tab1, tab2, tab3 = st.tabs(["🎮 Games List", "⚙️ All Configurations", "📊 Statistics"])
+
+    with tab1:
+        st.subheader("🎮 Your Games")
+
+        # Create games table
+        games_data = []
+        for game_name, configs in st.session_state.saved_games.items():
+            if configs:
+                latest_config = configs[-1]
+                games_data.append({
+                    'Game Name': game_name,
+                    'Game ID': game_name,
+                    'Total Configs': len(configs),
+                    'Latest Price': f"${latest_config['features']['price']:.2f}",
+                    'Best Owners': max([int(c['predictions']['owners']) for c in configs]),
+                    'Avg Review': f"{np.mean([c['predictions']['review_ratio'] for c in configs]):.1%}",
+                    'Last Updated': configs[-1]['timestamp']
+                })
+
+        if games_data:
+            df_games = pd.DataFrame(games_data)
+            st.dataframe(
+                df_games,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Best Owners": st.column_config.NumberColumn("Best Owners", format="%d"),
+                }
+            )
+
+            # Select game to view/manage
+            st.markdown("---")
+            st.subheader("🔍 View Game Configurations")
+
+            selected_game = st.selectbox(
+                "Select a game to view its configurations:",
+                options=list(st.session_state.saved_games.keys()),
+                key="game_selector"
+            )
+
+            if selected_game:
+                configs = st.session_state.saved_games[selected_game]
+                st.markdown(f"### 📁 {selected_game} ({len(configs)} configurations)")
+
+                # Create configurations table for selected game
+                config_data = []
+                for idx, config in enumerate(configs, 1):
                     platforms = []
                     if config['features'].get('windows', 0): platforms.append('Win')
                     if config['features'].get('mac', 0): platforms.append('Mac')
                     if config['features'].get('linux', 0): platforms.append('Linux')
-                    st.write(f"🖥️ {'/'.join(platforms) if platforms else 'None'}")
-                
-                with col3:
-                    st.write(f"👥 {int(config['predictions']['owners']):,} owners")
-                    st.write(f"⭐ {config['predictions']['review_ratio']:.1%} reviews")
-                
-                with col4:
-                    st.write(f"📅 {config['timestamp']}")
-                    
+
+                    config_data.append({
+                        'Config #': idx,
+                        'Config ID': config['config_id'].split('_')[-1],
+                        'Price': f"${config['features']['price']:.2f}",
+                        'Platforms': '+'.join(platforms) if platforms else 'None',
+                        'Release Month': config['features'].get('release_month', 'N/A'),
+                        'Predicted Owners': int(config['predictions']['owners']),
+                        'Review Ratio': f"{config['predictions']['review_ratio']:.1%}",
+                        'Created': config['timestamp']
+                    })
+
+                df_configs = pd.DataFrame(config_data)
+                df_configs = df_configs.sort_values('Predicted Owners', ascending=False)
+
+                st.dataframe(
+                    df_configs,
+                    use_container_width=True,
+                    hide_index=True,
+                    column_config={
+                        "Predicted Owners": st.column_config.NumberColumn("Predicted Owners", format="%d"),
+                    }
+                )
+
+                # Load game for new configuration
                 st.markdown("---")
-    
-    # Display ranked configurations (all games)
-    st.subheader("🏆 All Configurations Ranking")
-    
-    if st.session_state.configurations:
-        # Create ranking table
-        ranking_data = []
-        for config in st.session_state.configurations:
-            ranking_data.append({
-                'Game': config['game_name'],
-                'Config ID': config['config_id'].split('_')[-1],
-                'Price': f"${config['features']['price']:.2f}",
-                'Platforms': '/'.join([p for p in ['Win', 'Mac', 'Linux'] 
-                                      if config['features'].get(p.lower() if p != 'Win' else 'windows', 0)]),
-                'Release Month': config['features'].get('release_month', 'N/A'),
-                'Predicted Owners': int(config['predictions']['owners']),
-                'Review Ratio': f"{config['predictions']['review_ratio']:.1%}",
-                'Timestamp': config['timestamp']
-            })
-        
-        df_ranking = pd.DataFrame(ranking_data)
-        
-        # Sort by predicted owners
-        df_ranking = df_ranking.sort_values('Predicted Owners', ascending=False)
-        df_ranking['Rank'] = range(1, len(df_ranking) + 1)
-        
-        # Reorder columns
-        column_order = ['Rank', 'Game', 'Config ID', 'Price', 'Platforms', 
-                       'Release Month', 'Predicted Owners', 'Review Ratio', 'Timestamp']
-        df_ranking = df_ranking[column_order]
-        
-        # Display with formatting
-        st.dataframe(
-            df_ranking,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Rank": st.column_config.NumberColumn("Rank", width="small"),
-                "Predicted Owners": st.column_config.NumberColumn("Predicted Owners", format="%d"),
-            }
-        )
-        
-        # Summary statistics
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.info(f"💡 Want to create a new configuration for **{selected_game}**? Go to the 'New Game' tab, enter the same game name, and save a new prediction!")
+
+    with tab2:
+        st.subheader("⚙️ All Configurations Ranking")
+
+        if st.session_state.configurations:
+            # Create ranking table
+            ranking_data = []
+            for config in st.session_state.configurations:
+                platforms = []
+                if config['features'].get('windows', 0): platforms.append('Win')
+                if config['features'].get('mac', 0): platforms.append('Mac')
+                if config['features'].get('linux', 0): platforms.append('Linux')
+
+                ranking_data.append({
+                    'Game': config['game_name'],
+                    'Config ID': config['config_id'].split('_')[-1],
+                    'Price': f"${config['features']['price']:.2f}",
+                    'Platforms': '+'.join(platforms) if platforms else 'None',
+                    'Release Month': config['features'].get('release_month', 'N/A'),
+                    'Predicted Owners': int(config['predictions']['owners']),
+                    'Review Ratio': f"{config['predictions']['review_ratio']:.1%}",
+                    'Timestamp': config['timestamp']
+                })
+
+            df_ranking = pd.DataFrame(ranking_data)
+
+            # Sort by predicted owners
+            df_ranking = df_ranking.sort_values('Predicted Owners', ascending=False)
+            df_ranking['Rank'] = range(1, len(df_ranking) + 1)
+
+            # Reorder columns
+            column_order = ['Rank', 'Game', 'Config ID', 'Price', 'Platforms',
+                           'Release Month', 'Predicted Owners', 'Review Ratio', 'Timestamp']
+            df_ranking = df_ranking[column_order]
+
+            # Display with formatting
+            st.dataframe(
+                df_ranking,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Rank": st.column_config.NumberColumn("Rank", width="small"),
+                    "Predicted Owners": st.column_config.NumberColumn("Predicted Owners", format="%d"),
+                }
+            )
+
+            # Download button
+            csv = df_ranking.to_csv(index=False)
+            st.download_button(
+                label="📥 Download Configurations as CSV",
+                data=csv,
+                file_name="game_configurations.csv",
+                mime="text/csv"
+            )
+
+    with tab3:
         st.subheader("📊 Configuration Statistics")
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("Total Configurations", len(st.session_state.configurations))
-        
-        with col2:
-            st.metric("Unique Games", len(st.session_state.saved_games))
-        
-        with col3:
-            avg_owners = df_ranking['Predicted Owners'].mean()
-            st.metric("Avg Predicted Owners", f"{int(avg_owners):,}")
-        
-        with col4:
-            best_config = df_ranking.iloc[0]
-            st.metric("Best Configuration", f"{best_config['Game']} #{best_config['Config ID']}")
+
+        if st.session_state.configurations:
+            col1, col2, col3, col4 = st.columns(4)
+
+            with col1:
+                st.metric("Total Configurations", len(st.session_state.configurations))
+
+            with col2:
+                st.metric("Unique Games", len(st.session_state.saved_games))
+
+            with col3:
+                all_owners = [c['predictions']['owners'] for c in st.session_state.configurations]
+                avg_owners = np.mean(all_owners)
+                st.metric("Avg Predicted Owners", f"{int(avg_owners):,}")
+
+            with col4:
+                best_config = max(st.session_state.configurations, key=lambda x: x['predictions']['owners'])
+                st.metric("Best Configuration", f"{best_config['game_name']}")
+
+            st.markdown("---")
+
+            # Price distribution chart
+            col1, col2 = st.columns(2)
+
+            with col1:
+                prices = [c['features']['price'] for c in st.session_state.configurations]
+                owners = [c['predictions']['owners'] for c in st.session_state.configurations]
+                games = [c['game_name'] for c in st.session_state.configurations]
+
+                fig_price = px.scatter(
+                    x=prices,
+                    y=owners,
+                    labels={'x': 'Price ($)', 'y': 'Predicted Owners'},
+                    title="Price vs Predicted Owners (Your Configurations)",
+                    hover_name=games,
+                    opacity=0.7
+                )
+                st.plotly_chart(fig_price, use_container_width=True)
+
+            with col2:
+                reviews = [c['predictions']['review_ratio'] for c in st.session_state.configurations]
+                fig_reviews = px.histogram(
+                    x=reviews,
+                    nbins=20,
+                    labels={'x': 'Review Ratio', 'y': 'Count'},
+                    title="Review Ratio Distribution"
+                )
+                st.plotly_chart(fig_reviews, use_container_width=True)
 
 def data_analysis_page():
     """Data Analysis page - visualizations and insights"""
@@ -816,42 +956,80 @@ def data_analysis_page():
                                             'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'])
             st.plotly_chart(fig_monthly, use_container_width=True)
         
-        # Platform analysis
+        # Platform analysis - combinations
         st.subheader("Platform Distribution Analysis")
-        platform_data = []
-        for platform in ['windows', 'mac', 'linux']:
-            if platform in df.columns:
-                platform_data.append({
-                    'Platform': platform.title(),
-                    'Games': df[platform].sum(),
-                    'Avg Owners': df[df[platform] == 1]['owners'].mean(),
-                    'Avg Review': df[df[platform] == 1]['review_ratio'].mean()
-                })
-        
-        if platform_data:
-            df_platforms = pd.DataFrame(platform_data)
-            
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                fig_platform_games = px.pie(
-                    df_platforms,
-                    values='Games',
-                    names='Platform',
-                    title="Games by Platform Support"
-                )
-                st.plotly_chart(fig_platform_games, use_container_width=True)
-            
-            with col2:
-                fig_platform_performance = px.bar(
-                    df_platforms,
-                    x='Platform',
-                    y='Avg Owners',
-                    title="Average Owners by Platform",
-                    color='Avg Review',
-                    color_continuous_scale='Viridis'
-                )
-                st.plotly_chart(fig_platform_performance, use_container_width=True)
+
+        # Calculate platform combinations
+        platform_combinations = []
+
+        for _, row in df.iterrows():
+            win = row.get('windows', 0) == 1
+            mac = row.get('mac', 0) == 1
+            lin = row.get('linux', 0) == 1
+
+            if win and mac and lin:
+                combo = "Windows+Mac+Linux"
+            elif win and mac:
+                combo = "Windows+Mac"
+            elif win and lin:
+                combo = "Windows+Linux"
+            elif mac and lin:
+                combo = "Mac+Linux"
+            elif win:
+                combo = "Windows Only"
+            elif mac:
+                combo = "Mac Only"
+            elif lin:
+                combo = "Linux Only"
+            else:
+                combo = "None"
+
+            platform_combinations.append({
+                'Combination': combo,
+                'Owners': row.get('owners', 0),
+                'Review': row.get('review_ratio', 0)
+            })
+
+        df_combos = pd.DataFrame(platform_combinations)
+
+        # Aggregate by combination
+        combo_stats = df_combos.groupby('Combination').agg({
+            'Combination': 'count',
+            'Owners': 'mean',
+            'Review': 'mean'
+        }).reset_index(drop=False)
+        combo_stats.columns = ['Platform Combination', 'Game Count', 'Avg Owners', 'Avg Review']
+
+        # Sort by game count
+        combo_stats = combo_stats.sort_values('Game Count', ascending=False)
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            fig_platform_combos = px.bar(
+                combo_stats,
+                x='Platform Combination',
+                y='Game Count',
+                title="Games by Platform Combination",
+                color='Avg Review',
+                color_continuous_scale='RdYlGn',
+                text='Game Count'
+            )
+            fig_platform_combos.update_traces(texttemplate='%{text}', textposition='outside')
+            fig_platform_combos.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig_platform_combos, use_container_width=True)
+
+        with col2:
+            fig_platform_performance = px.bar(
+                combo_stats,
+                x='Platform Combination',
+                y='Avg Owners',
+                title="Average Owners by Platform Combination",
+                color='Avg Review',
+                color_continuous_scale='Viridis'
+            )
+            fig_platform_performance.update_layout(xaxis_tickangle=-45)
+            st.plotly_chart(fig_platform_performance, use_container_width=True)
     
     with tab4:
         st.subheader("🎯 Model Performance Metrics")
