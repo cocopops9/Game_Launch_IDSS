@@ -466,19 +466,19 @@ def new_game_page():
     if predict_button:
         # Prepare data for prediction
         X_pred = pd.DataFrame([input_features])[models['feature_cols']]
-        
+
         # Make predictions
         owners_pred = models['owners_model'].predict(X_pred)[0]
         review_pred = models['review_model'].predict(X_pred)[0]
-        
+
         # Ensure predictions are reasonable
         owners_pred = max(100, owners_pred)
         review_pred = np.clip(review_pred, 0.1, 0.99)
-        
+
         # Calculate prediction ranges (±40% for owners based on model uncertainty)
         owners_lower = int(owners_pred * 0.6)
         owners_upper = int(owners_pred * 1.4)
-        
+
         # Format owners as range string
         def format_owners_range(lower, upper):
             """Format owners count into readable range"""
@@ -488,9 +488,9 @@ def new_game_page():
                 return f"{lower//1000:,}K - {upper//1000:,}K"
             else:
                 return f"{lower//1000000:.1f}M - {upper//1000000:.1f}M"
-        
+
         owners_range_str = format_owners_range(owners_lower, owners_upper)
-        
+
         # Store predictions
         st.session_state.current_predictions = {
             'game_name': game_name,
@@ -501,13 +501,19 @@ def new_game_page():
             'review_ratio': review_pred,
             'features': input_features
         }
-        
-        # Display results
+
+    # Display results if predictions exist (persist across reruns)
+    if st.session_state.current_predictions:
+        prediction_data = st.session_state.current_predictions
+        owners_pred = prediction_data['owners']
+        review_pred = prediction_data['review_ratio']
+        pred_features = prediction_data['features']
+
         st.markdown("---")
         st.markdown('<h3 style="color: #4ECDC4;">📊 Prediction Results</h3>', unsafe_allow_html=True)
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.markdown('<div class="metric-card">', unsafe_allow_html=True)
             st.metric(
@@ -516,7 +522,7 @@ def new_game_page():
                 delta=f"±{int(owners_pred * 0.15):,}"
             )
             st.markdown('</div>', unsafe_allow_html=True)
-        
+
         with col2:
             st.markdown('<div class="metric-card">', unsafe_allow_html=True)
             st.metric(
@@ -525,17 +531,17 @@ def new_game_page():
                 delta=f"±{review_pred * 0.08:.1%}"
             )
             st.markdown('</div>', unsafe_allow_html=True)
-        
+
         # Generate data-driven recommendations
         recommendations = generate_data_driven_recommendations(
-            st.session_state.current_predictions,
-            input_features,
+            prediction_data,
+            pred_features,
             st.session_state.data_analysis
         )
-        
+
         if recommendations:
             st.markdown('<h3 style="color: #4ECDC4;">💡 Data-Driven Recommendations</h3>', unsafe_allow_html=True)
-            
+
             for rec in recommendations:
                 priority_color = {
                     'Critical': '🔴',
@@ -544,7 +550,7 @@ def new_game_page():
                     'Low': '🟢',
                     'Info': '🔵'
                 }
-                
+
                 confidence_indicator = {
                     'Very Strong': '⭐⭐⭐⭐⭐',
                     'Strong': '⭐⭐⭐⭐',
@@ -552,29 +558,25 @@ def new_game_page():
                     'Weak': '⭐⭐',
                     'Model Metric': '📊'
                 }
-                
+
                 st.markdown(f"""
                 <div class="recommendation-box">
-                    <strong>{priority_color.get(rec['priority'], '⚪')} {rec['type']}</strong> 
+                    <strong>{priority_color.get(rec['priority'], '⚪')} {rec['type']}</strong>
                     {confidence_indicator.get(rec.get('data_confidence', ''), '')}<br>
                     {rec['message']}
                 </div>
                 """, unsafe_allow_html=True)
-        
+
         # Save configuration button
         st.markdown("---")
         if st.button("💾 Save This Configuration", use_container_width=True, type="primary"):
             saved_name = save_game_configuration(
-                game_name, 
-                input_features, 
-                st.session_state.current_predictions
+                game_name,
+                pred_features,
+                prediction_data
             )
-            st.markdown(f"""
-            <div class="success-box">
-                ✅ Configuration saved for <strong>{saved_name}</strong>! 
-                Total configurations for this game: {len(st.session_state.saved_games[saved_name])}
-            </div>
-            """, unsafe_allow_html=True)
+            st.success(f"✅ Configuration saved for **{saved_name}**! Total configurations for this game: {len(st.session_state.saved_games[saved_name])}")
+            st.info("💡 Switch to the 'My Games' tab to view all your saved configurations!")
 
 def my_games_page():
     """My Games page - view and manage saved configurations"""
