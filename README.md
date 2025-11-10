@@ -33,34 +33,60 @@ An intelligent web-based system to help game producers make data-driven decision
 
 ## 🚀 Quick Start
 
+### Prerequisites
+
+**IMPORTANT: Python Version Requirement**
+- ✅ **Python 3.11.x** (Recommended and tested)
+- ⚠️ **Python 3.10.x** (Should work but not recommended)
+- ❌ **Python 3.13+** (NOT compatible - has breaking changes)
+- ❌ **Python 3.9 or older** (NOT supported)
+
+Check your Python version:
+```bash
+python --version
+```
+
+If you have Python 3.13+, you need to downgrade or create a virtual environment with Python 3.11.
+
 ### Installation
 
-1. Install required packages:
+1. **Create a virtual environment (Recommended)**:
+```bash
+# Using venv with Python 3.11
+python3.11 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Or using conda
+conda create -n game_idss python=3.11
+conda activate game_idss
+```
+
+2. **Install required packages**:
 ```bash
 pip install -r requirements.txt
 ```
 
-2. Prepare your Steam data:
+3. **Prepare your Steam data**:
    - Place `steam.csv` in the project directory (required)
    - Optionally place `steamspy_tag_data.csv` for additional tag data
 
-3. Run the application:
+4. **Run the application**:
 ```bash
 streamlit run app.py
 ```
 
-4. Open your browser to `http://localhost:8501`
+5. **Open your browser** to `http://localhost:8501`
 
-### Dependencies (Latest Versions)
-All dependencies are pinned to their latest stable versions in `requirements.txt`:
-- **Streamlit 1.51.0** - Web framework
-- **Pandas 2.3.3** - Data processing
-- **NumPy 2.3.4** - Numerical computing
-- **Plotly 6.4.0** - Interactive visualizations
-- **Scikit-learn 1.7.2** - Machine learning models
-- **LightGBM 4.6.0** - Gradient boosting
+### Dependencies (Stable Versions for Python 3.11)
+All dependencies are pinned to stable, tested versions in `requirements.txt`:
+- **Streamlit 1.40.1** - Web framework
+- **Pandas 2.2.3** - Data processing
+- **NumPy 2.1.3** - Numerical computing
+- **Plotly 5.24.1** - Interactive visualizations
+- **Scikit-learn 1.5.2** - Machine learning models
+- **LightGBM 4.5.0** - Gradient boosting
 - **Seaborn 0.13.2** - Statistical visualizations
-- **Matplotlib 3.10.7** - Plotting library
+- **Matplotlib 3.9.3** - Plotting library
 
 ## 📊 Using Your Steam Data
 
@@ -173,12 +199,32 @@ The system displays:
 
 ### Common Issues
 
-1. **File not found error**: Ensure `steam.csv` is in the same directory as `app.py`
-2. **Import errors**: Run `pip install -r requirements.txt` to install all dependencies
-3. **Data validation warnings**: Check that CSV columns match expected format
-4. **Memory issues**: For very large datasets (100k+ games), consider sampling data
-5. **Games not persisting**: Check write permissions for `saved_games.json` in the project directory
-6. **Version conflicts**: Use Python 3.11+ and install dependencies from requirements.txt with exact versions
+1. **Python 3.13 Compatibility Error** (pandas/_PyLong_AsByteArray compilation errors):
+   - **Solution**: Use Python 3.11.x - Python 3.13 is not yet compatible
+   - Create a virtual environment with Python 3.11:
+     ```bash
+     conda create -n game_idss python=3.11
+     conda activate game_idss
+     pip install -r requirements.txt
+     ```
+
+2. **ModuleNotFoundError for lightgbm/other packages**:
+   - **Solution**: Ensure you're in the correct virtual environment and run:
+     ```bash
+     pip install -r requirements.txt
+     ```
+
+3. **File not found error**: Ensure `steam.csv` is in the same directory as `app.py`
+
+4. **Data validation warnings**: Check that CSV columns match expected format
+
+5. **Memory issues**: For very large datasets (100k+ games), consider sampling data
+
+6. **Games not persisting**: Check write permissions for `saved_games.json` in the project directory
+
+7. **Version conflicts**:
+   - Verify Python version: `python --version` (must be 3.11.x)
+   - Reinstall dependencies: `pip install -r requirements.txt --force-reinstall`
 
 ## 🚀 Deployment
 
@@ -206,20 +252,23 @@ The app is compatible with:
 
 ## 📋 System Requirements
 
-- **Python 3.11+** (tested with 3.11.14)
+- **Python 3.11.x** (Required - tested with 3.11.14)
+  - ⚠️ Python 3.13+ is NOT compatible
+  - Python 3.10.x may work but is not recommended
 - **Operating System**: Linux, macOS, or Windows
 - **RAM**: Minimum 4GB (8GB+ recommended for large datasets)
 - **Storage**: 500MB+ for dependencies and data
 
 ### Python Dependencies (see requirements.txt)
-- streamlit==1.51.0
-- pandas==2.3.3
-- numpy==2.3.4
-- plotly==6.4.0
-- scikit-learn==1.7.2
-- lightgbm==4.6.0
+All versions tested and stable with Python 3.11:
+- streamlit==1.40.1
+- pandas==2.2.3
+- numpy==2.1.3
+- plotly==5.24.1
+- scikit-learn==1.5.2
+- lightgbm==4.5.0
 - seaborn==0.13.2
-- matplotlib==3.10.7
+- matplotlib==3.9.3
 
 ## 📝 Example Usage
 
