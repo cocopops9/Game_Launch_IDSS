@@ -15,4 +15,4 @@ scikit-learn==1.5.2
 lightgbm==4.5.0
 
 # Statistical modeling (required for plotly trendlines)
-statsmodels==0.14.4
+statsmodels>=0.14.2
