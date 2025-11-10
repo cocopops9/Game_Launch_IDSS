@@ -175,9 +175,16 @@ def load_steam_data():
 
 @st.cache_resource
 def train_models(df, _loader):
-    """Train enhanced machine learning models with log transformation and all features"""
+    """
+    Train ML models focused on IMPROVEMENT ANALYSIS rather than prediction accuracy.
+    Uses all available features to learn what IMPROVES owners and review ratios.
+    Returns actionable insights on feature impacts and relative improvements.
+    """
 
-    # Extract all available features from the dataset
+    print("  🎯 IMPROVEMENT-FOCUSED MODEL TRAINING")
+    print("  🎯 Goal: Learn what improves outcomes, not predict exact numbers")
+
+    # Extract ALL available features from the dataset (all 18 columns)
     feature_cols = []
 
     # Basic features
@@ -193,7 +200,11 @@ def train_models(df, _loader):
     # Engagement features (from positive/negative ratings)
     if 'positive_ratings' in df.columns and 'negative_ratings' in df.columns:
         df['total_ratings'] = df['positive_ratings'] + df['negative_ratings']
-        df['engagement_score'] = np.log1p(df['total_ratings'])  # Log transform for better scale
+        df['engagement_score'] = np.log1p(df['total_ratings'])
+        feature_cols.extend(['total_ratings', 'engagement_score'])
+    elif 'positive_reviews' in df.columns and 'negative_reviews' in df.columns:
+        df['total_ratings'] = df['positive_reviews'] + df['negative_reviews']
+        df['engagement_score'] = np.log1p(df['total_ratings'])
         feature_cols.extend(['total_ratings', 'engagement_score'])
 
     # Playtime features
@@ -211,122 +222,166 @@ def train_models(df, _loader):
     # Game age (days since release)
     if 'release_date' in df.columns:
         df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
-        reference_date = pd.Timestamp('2017-01-01')  # Use a fixed reference date
+        reference_date = pd.Timestamp('2017-01-01')
         df['game_age_days'] = (reference_date - df['release_date']).dt.days
-        df['game_age_days'] = df['game_age_days'].fillna(365).clip(0, 10000)  # Cap at ~27 years
+        df['game_age_days'] = df['game_age_days'].fillna(365).clip(0, 10000)
         feature_cols.append('game_age_days')
 
     # Tag/genre features
     tag_cols = [col for col in df.columns if col.startswith('tag_')]
     feature_cols.extend(tag_cols)
 
-    # Categories count (if available)
+    # Categories and genres
     if 'categories' in df.columns:
         df['num_categories'] = df['categories'].fillna('').str.split(';').str.len()
         feature_cols.append('num_categories')
 
-    # Genres count (if available)
-    if 'genres' in df.columns and isinstance(df['genres'].iloc[0], str):
+    if 'genres' in df.columns and len(df['genres']) > 0 and isinstance(df['genres'].iloc[0], str):
         df['num_genres'] = df['genres'].fillna('').str.split(';').str.len()
         feature_cols.append('num_genres')
 
-    print(f"  📊 Using {len(feature_cols)} features from dataset")
+    print(f"  ✅ Using ALL {len(feature_cols)} features from dataset")
 
     # Prepare features and targets
-    X = df[feature_cols].copy()
+    X = df[feature_cols].copy().fillna(0)
 
-    # LOG TRANSFORM OWNERS (Critical for handling 10K-200M range!)
+    # Use log transformation for owners (handles wide 10K-200M range)
     df['log_owners'] = np.log1p(df['owners'])
+    y_owners = df['owners']
     y_owners_log = df['log_owners']
-
-    # Review ratio target
     y_reviews = df['review_ratio']
 
-    # Validate data
-    print(f"  📊 Training data shape: {X.shape}")
-    print(f"  📊 Feature columns: {len(X.columns)}")
-    print(f"  📊 Original Owners range: [{df['owners'].min():.0f}, {df['owners'].max():.0f}]")
-    print(f"  📊 Log Owners range: [{y_owners_log.min():.2f}, {y_owners_log.max():.2f}]")
-    print(f"  📊 Review Ratio range: [{y_reviews.min():.2f}, {y_reviews.max():.2f}]")
+    print(f"  📊 Dataset: {X.shape[0]} games, {X.shape[1]} features")
+    print(f"  📊 Owners range: [{y_owners.min():,.0f} - {y_owners.max():,.0f}]")
+    print(f"  📊 Review ratio range: [{y_reviews.min():.2f} - {y_reviews.max():.2f}]")
 
-    # Feature engineering - create interaction features
+    # ============================================================================
+    # CALCULATE FEATURE IMPACTS - The core improvement analysis
+    # ============================================================================
+    print("  🔬 Analyzing feature impacts on outcomes...")
+
+    feature_impacts = {}
+
+    for feat in feature_cols:
+        if feat not in df.columns:
+            continue
+
+        # Check if feature has variation
+        if df[feat].nunique() <= 1:
+            continue
+
+        # For BINARY features (0/1), calculate improvement when feature is present
+        if df[feat].dtype in ['int64', 'bool', 'int32'] and set(df[feat].unique()).issubset({0, 1}):
+            with_feat = df[df[feat] == 1]
+            without_feat = df[df[feat] == 0]
+
+            if len(with_feat) > 10 and len(without_feat) > 10:  # Need enough samples
+                # Owners improvement (use median to be robust to outliers)
+                own_with = with_feat['owners'].median()
+                own_without = without_feat['owners'].median()
+                own_improvement = ((own_with - own_without) / own_without * 100) if own_without > 0 else 0
+
+                # Review ratio improvement (use mean)
+                rev_with = with_feat['review_ratio'].mean()
+                rev_without = without_feat['review_ratio'].mean()
+                rev_improvement = ((rev_with - rev_without) / rev_without * 100) if rev_without > 0 else 0
+
+                feature_impacts[feat] = {
+                    'type': 'binary',
+                    'owners_improvement_pct': round(own_improvement, 1),
+                    'reviews_improvement_pct': round(rev_improvement, 1),
+                    'owners_with': int(own_with),
+                    'owners_without': int(own_without),
+                    'reviews_with': round(rev_with, 3),
+                    'reviews_without': round(rev_without, 3),
+                    'sample_with': len(with_feat),
+                    'sample_without': len(without_feat)
+                }
+
+        # For CONTINUOUS features, calculate correlation and percentile impact
+        elif pd.api.types.is_numeric_dtype(df[feat]):
+            corr_owners = df[[feat, 'owners']].corr().iloc[0, 1]
+            corr_reviews = df[[feat, 'review_ratio']].corr().iloc[0, 1]
+
+            # Compare top 25% vs bottom 25%
+            q75 = df[feat].quantile(0.75)
+            q25 = df[feat].quantile(0.25)
+
+            top_quartile = df[df[feat] >= q75]
+            bottom_quartile = df[df[feat] <= q25]
+
+            if len(top_quartile) > 10 and len(bottom_quartile) > 10:
+                own_top = top_quartile['owners'].median()
+                own_bottom = bottom_quartile['owners'].median()
+                own_improvement = ((own_top - own_bottom) / own_bottom * 100) if own_bottom > 0 else 0
+
+                rev_top = top_quartile['review_ratio'].mean()
+                rev_bottom = bottom_quartile['review_ratio'].mean()
+                rev_improvement = ((rev_top - rev_bottom) / rev_bottom * 100) if rev_bottom > 0 else 0
+
+                feature_impacts[feat] = {
+                    'type': 'continuous',
+                    'correlation_owners': round(corr_owners, 3),
+                    'correlation_reviews': round(corr_reviews, 3),
+                    'owners_improvement_pct': round(own_improvement, 1),
+                    'reviews_improvement_pct': round(rev_improvement, 1),
+                    'owners_top25': int(own_top),
+                    'owners_bottom25': int(own_bottom),
+                    'reviews_top25': round(rev_top, 3),
+                    'reviews_bottom25': round(rev_bottom, 3),
+                    'q75_value': round(q75, 2),
+                    'q25_value': round(q25, 2)
+                }
+
+    print(f"  ✅ Calculated impacts for {len(feature_impacts)} features")
+
+    # ============================================================================
+    # Train models for relative scoring (still useful for comparisons)
+    # ============================================================================
     X_engineered = X.copy()
 
+    # Add useful interaction features
     if 'price' in X.columns:
-        X_engineered['price_squared'] = X['price'] ** 2
         X_engineered['price_log'] = np.log1p(X['price'])
 
-    # Platform interactions
     if 'windows' in X.columns and 'mac' in X.columns and 'linux' in X.columns:
         X_engineered['multi_platform'] = X['windows'] + X['mac'] + X['linux']
-        X_engineered['windows_exclusive'] = ((X['windows'] == 1) & (X['mac'] == 0) & (X['linux'] == 0)).astype(int)
         X_engineered['cross_platform'] = (X_engineered['multi_platform'] >= 2).astype(int)
 
-    # Genre/tag diversity
     if tag_cols:
         X_engineered['total_tags'] = X[tag_cols].sum(axis=1)
-        X_engineered['tag_diversity'] = (X_engineered['total_tags'] > 3).astype(int)
-
-    # Price tier features
-    if 'price' in X.columns:
-        X_engineered['price_tier'] = pd.cut(X['price'], bins=[-0.1, 0, 5, 15, 30, 100],
-                                            labels=[0, 1, 2, 3, 4]).astype(int)
-
-    # Playtime engagement ratio
-    if 'average_playtime' in X.columns and 'median_playtime' in X.columns:
-        X_engineered['playtime_ratio'] = np.where(
-            X['median_playtime'] > 0,
-            X['average_playtime'] / (X['median_playtime'] + 1),
-            1.0
-        )
 
     # Split data
-    X_train, X_test, y_owners_train, y_owners_test, y_reviews_train, y_reviews_test = train_test_split(
+    X_train, X_test, y_train_log, y_test_log, y_train_rev, y_test_rev = train_test_split(
         X_engineered, y_owners_log, y_reviews, test_size=0.2, random_state=42
     )
 
-    # Also keep original owners for metrics
-    _, _, y_owners_actual_train, y_owners_actual_test, _, _ = train_test_split(
-        X_engineered, df['owners'], y_reviews, test_size=0.2, random_state=42
+    _, _, y_train_actual, y_test_actual, _, _ = train_test_split(
+        X_engineered, y_owners, y_reviews, test_size=0.2, random_state=42
     )
 
-    # Clean feature names for LightGBM compatibility
+    # Clean column names
     X_train.columns = X_train.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
     X_test.columns = X_test.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
 
-    # Train ownership model (predicting LOG of owners)
-    print("  🤖 Training Owners model with log-transformed target...")
+    # Train models
+    print("  🤖 Training models for relative scoring...")
     owners_model = GradientBoostingRegressor(
-        n_estimators=150,
-        learning_rate=0.08,
-        max_depth=5,
-        min_samples_split=15,
-        min_samples_leaf=8,
-        random_state=42,
-        subsample=0.8,
-        max_features='sqrt'
+        n_estimators=150, learning_rate=0.08, max_depth=5,
+        min_samples_split=15, min_samples_leaf=8,
+        random_state=42, subsample=0.8, max_features='sqrt'
     )
-    owners_model.fit(X_train, y_owners_train)
+    owners_model.fit(X_train, y_train_log)
 
-    # Train review ratio model
-    print("  🤖 Training Review Ratio model...")
     review_model = lgb.LGBMRegressor(
-        n_estimators=150,
-        learning_rate=0.05,
-        max_depth=6,
-        num_leaves=31,
-        min_child_samples=15,
-        random_state=42,
-        verbose=-1,
-        feature_fraction=0.8,
-        bagging_fraction=0.8,
-        bagging_freq=5,
-        reg_alpha=0.15,
-        reg_lambda=0.15
+        n_estimators=150, learning_rate=0.05, max_depth=6,
+        num_leaves=31, min_child_samples=15, random_state=42,
+        verbose=-1, feature_fraction=0.8, bagging_fraction=0.8,
+        bagging_freq=5, reg_alpha=0.15, reg_lambda=0.15
     )
-    review_model.fit(X_train, y_reviews_train)
+    review_model.fit(X_train, y_train_rev)
 
-    # Calculate feature importance
+    # Feature importance
     feature_importance_owners = pd.DataFrame({
         'feature': X_train.columns,
         'importance': owners_model.feature_importances_
@@ -337,46 +392,33 @@ def train_models(df, _loader):
         'importance': review_model.feature_importances_
     }).sort_values('importance', ascending=False)
 
-    # Calculate correlations for recommendations
-    corr_cols = feature_cols + ['owners', 'review_ratio']
-    corr_data = df[[c for c in corr_cols if c in df.columns]].copy()
-    corr_data = corr_data.fillna(0)
-    for col in corr_data.columns:
-        corr_data[col] = pd.to_numeric(corr_data[col], errors='coerce').fillna(0)
-    correlations = corr_data.corr()
-
-    # Analyze patterns for recommendations
-    price_impact = correlations.loc['price', 'owners'] if 'price' in correlations.index else -0.3
-    platform_impacts = {}
-    for platform in ['windows', 'mac', 'linux']:
-        if platform in correlations.index:
-            platform_impacts[platform] = correlations.loc[platform, 'owners']
-
-    # Store analysis results
+    # Store comprehensive analysis
     st.session_state.data_analysis = {
-        'correlations': correlations,
-        'price_impact': price_impact,
-        'platform_impacts': platform_impacts,
+        'feature_impacts': feature_impacts,  # NEW: Core improvement data
         'feature_importance_owners': feature_importance_owners,
-        'feature_importance_reviews': feature_importance_reviews,
-        'average_owners_by_price': df.groupby(pd.cut(df['price'], bins=[0, 10, 20, 30, 40, 50, 60]), observed=False)['owners'].mean(),
-        'average_review_by_tag': {col: df[df[col] == 1]['review_ratio'].mean() for col in tag_cols if col in df.columns and df[col].sum() > 0}
+        'feature_importance_reviews': feature_importance_reviews
     }
 
-    print("  ✅ Models trained successfully!")
-    print(f"  📊 Top 3 features for Owners: {', '.join(feature_importance_owners.head(3)['feature'].tolist())}")
-    print(f"  📊 Top 3 features for Reviews: {', '.join(feature_importance_reviews.head(3)['feature'].tolist())}")
+    print("  ✅ Model training complete!")
+    print(f"  💡 TOP IMPROVEMENTS FOR OWNERS:")
+    # Show top 3 features with biggest positive impact
+    sorted_impacts = sorted(feature_impacts.items(),
+                          key=lambda x: x[1].get('owners_improvement_pct', 0),
+                          reverse=True)[:3]
+    for feat, impact in sorted_impacts:
+        pct = impact.get('owners_improvement_pct', 0)
+        print(f"     - {feat}: +{pct}% improvement")
 
     return {
         'owners_model': owners_model,
         'review_model': review_model,
         'feature_cols': X_train.columns.tolist(),
-        'scaler': None,  # Not using scaler with tree-based models
+        'feature_impacts': feature_impacts,  # NEW: Return improvement data
         'X_test': X_test,
-        'y_owners_test': y_owners_test,  # Log-transformed
-        'y_owners_actual_test': y_owners_actual_test,  # Original scale
-        'y_reviews_test': y_reviews_test,
-        'uses_log_transform': True  # Flag to indicate log transform is used
+        'y_owners_test': y_test_log,
+        'y_owners_actual_test': y_test_actual,
+        'y_reviews_test': y_test_rev,
+        'uses_log_transform': True
     }
 
 def generate_data_driven_recommendations(prediction_results, input_features, data_analysis):
@@ -761,7 +803,120 @@ def new_game_page():
                 delta=f"±{review_pred * 0.08:.1%}"
             )
             st.markdown('</div>', unsafe_allow_html=True)
-        
+
+        # ============================================================================
+        # IMPROVEMENT INSIGHTS - Show what improves outcomes
+        # ============================================================================
+        if 'feature_impacts' in models:
+            st.markdown("---")
+            st.markdown('<h3 style="color: #4ECDC4;">📈 What Improves Your Game\'s Success?</h3>', unsafe_allow_html=True)
+            st.info("💡 These insights show how each feature impacts success, based on analysis of all games in the dataset.")
+
+            feature_impacts = models['feature_impacts']
+
+            # Split into two columns for owners and reviews
+            col_own, col_rev = st.columns(2)
+
+            with col_own:
+                st.markdown("**🎮 Features That Improve Owners**")
+
+                # Get top 10 features sorted by owners improvement
+                sorted_by_owners = sorted(
+                    [(k, v) for k, v in feature_impacts.items() if v.get('owners_improvement_pct', 0) > 0],
+                    key=lambda x: x[1].get('owners_improvement_pct', 0),
+                    reverse=True
+                )[:10]
+
+                if sorted_by_owners:
+                    # Create dataframe for chart
+                    chart_data = pd.DataFrame([
+                        {
+                            'Feature': feat.replace('tag_', '').replace('_', ' ').title(),
+                            'Improvement %': impact['owners_improvement_pct']
+                        }
+                        for feat, impact in sorted_by_owners
+                    ])
+
+                    # Bar chart
+                    fig_owners = px.bar(
+                        chart_data,
+                        x='Improvement %',
+                        y='Feature',
+                        orientation='h',
+                        title='Top 10 Features for Increasing Owners',
+                        color='Improvement %',
+                        color_continuous_scale='Blues'
+                    )
+                    fig_owners.update_layout(height=400, showlegend=False)
+                    st.plotly_chart(fig_owners, use_container_width=True)
+
+                    # Show details for top 3
+                    st.markdown("**Top 3 Details:**")
+                    for feat, impact in sorted_by_owners[:3]:
+                        feat_name = feat.replace('tag_', '').replace('_', ' ').title()
+                        pct = impact['owners_improvement_pct']
+
+                        if impact['type'] == 'binary':
+                            with_val = impact['owners_with']
+                            without_val = impact['owners_without']
+                            st.markdown(f"- **{feat_name}**: +{pct}% ({without_val:,} → {with_val:,} owners)")
+                        else:
+                            top_val = impact['owners_top25']
+                            bottom_val = impact['owners_bottom25']
+                            st.markdown(f"- **{feat_name}**: +{pct}% (top 25% vs bottom 25%: {bottom_val:,} → {top_val:,})")
+                else:
+                    st.info("No positive improvements found for owners.")
+
+            with col_rev:
+                st.markdown("**⭐ Features That Improve Review Ratio**")
+
+                # Get top 10 features sorted by review improvement
+                sorted_by_reviews = sorted(
+                    [(k, v) for k, v in feature_impacts.items() if v.get('reviews_improvement_pct', 0) > 0],
+                    key=lambda x: x[1].get('reviews_improvement_pct', 0),
+                    reverse=True
+                )[:10]
+
+                if sorted_by_reviews:
+                    # Create dataframe for chart
+                    chart_data = pd.DataFrame([
+                        {
+                            'Feature': feat.replace('tag_', '').replace('_', ' ').title(),
+                            'Improvement %': impact['reviews_improvement_pct']
+                        }
+                        for feat, impact in sorted_by_reviews
+                    ])
+
+                    # Bar chart
+                    fig_reviews = px.bar(
+                        chart_data,
+                        x='Improvement %',
+                        y='Feature',
+                        orientation='h',
+                        title='Top 10 Features for Improving Review Ratio',
+                        color='Improvement %',
+                        color_continuous_scale='Greens'
+                    )
+                    fig_reviews.update_layout(height=400, showlegend=False)
+                    st.plotly_chart(fig_reviews, use_container_width=True)
+
+                    # Show details for top 3
+                    st.markdown("**Top 3 Details:**")
+                    for feat, impact in sorted_by_reviews[:3]:
+                        feat_name = feat.replace('tag_', '').replace('_', ' ').title()
+                        pct = impact['reviews_improvement_pct']
+
+                        if impact['type'] == 'binary':
+                            with_val = impact['reviews_with']
+                            without_val = impact['reviews_without']
+                            st.markdown(f"- **{feat_name}**: +{pct}% ({without_val:.1%} → {with_val:.1%} ratio)")
+                        else:
+                            top_val = impact['reviews_top25']
+                            bottom_val = impact['reviews_bottom25']
+                            st.markdown(f"- **{feat_name}**: +{pct}% (top 25% vs bottom 25%: {bottom_val:.1%} → {top_val:.1%})")
+                else:
+                    st.info("No positive improvements found for review ratio.")
+
         # Generate data-driven recommendations
         recommendations = generate_data_driven_recommendations(
             st.session_state.current_predictions,
@@ -962,59 +1117,165 @@ def data_analysis_page():
     data_analysis = st.session_state.data_analysis
     
     # Create tabs
-    tab1, tab2, tab3, tab4 = st.tabs(["Correlation Analysis", "Feature Importance", 
-                                       "Trend Analysis", "Model Performance"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Improvement Analysis", "Feature Importance",
+                                             "Correlation Analysis", "Trend Analysis", "Model Performance"])
     
     with tab1:
-        st.subheader("🔗 Correlation Matrix")
-        
-        if 'correlations' in data_analysis:
-            corr_matrix = data_analysis['correlations']
-            
-            # Select important features
-            important_features = ['price', 'owners', 'review_ratio', 'windows', 'mac', 'linux']
-            available_features = [f for f in important_features if f in corr_matrix.columns]
-            
-            # Add some tag features
-            tag_features = [col for col in corr_matrix.columns if col.startswith('tag_')][:5]
-            available_features.extend(tag_features)
-            
-            # Create subset correlation matrix
-            subset_corr = corr_matrix.loc[available_features, available_features]
-            
-            # Create heatmap
-            fig = px.imshow(
-                subset_corr,
-                labels=dict(x="Features", y="Features", color="Correlation"),
-                x=available_features,
-                y=available_features,
-                color_continuous_scale="RdBu",
-                aspect="auto",
-                title="Feature Correlation Heatmap (Actual Steam Data)"
-            )
-            fig.update_layout(height=600)
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Key insights
-            st.markdown("**📊 Key Data Insights:**")
-            
-            price_owners_corr = corr_matrix.loc['price', 'owners'] if 'price' in corr_matrix.index else 0
-            windows_owners_corr = corr_matrix.loc['windows', 'owners'] if 'windows' in corr_matrix.index else 0
-            
-            insights = [
-                f"• **Price Impact**: Correlation with owners is {price_owners_corr:.3f}",
-                f"• **Windows Platform**: Correlation with owners is {windows_owners_corr:.3f}",
-                f"• **Dataset Size**: Analysis based on {len(df)} games",
-            ]
-            
-            for insight in insights:
-                st.markdown(insight)
-    
+        st.subheader("📈 What Improves Game Success?")
+        st.info("💡 This analysis shows how each feature impacts owners and review ratios, based on all games in the dataset.")
+
+        if 'feature_impacts' in models:
+            feature_impacts = models['feature_impacts']
+
+            # Overview metrics
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Features Analyzed", len(feature_impacts))
+            with col2:
+                positive_owners = sum(1 for v in feature_impacts.values() if v.get('owners_improvement_pct', 0) > 0)
+                st.metric("Features Improving Owners", positive_owners)
+            with col3:
+                positive_reviews = sum(1 for v in feature_impacts.values() if v.get('reviews_improvement_pct', 0) > 0)
+                st.metric("Features Improving Reviews", positive_reviews)
+
+            st.markdown("---")
+
+            # Two columns for owners and reviews
+            col_own, col_rev = st.columns(2)
+
+            with col_own:
+                st.markdown("### 🎮 Features That Improve Owners")
+
+                # Sort by owners improvement
+                sorted_by_owners = sorted(
+                    feature_impacts.items(),
+                    key=lambda x: x[1].get('owners_improvement_pct', 0),
+                    reverse=True
+                )
+
+                # Show top 15
+                top_15_owners = [(k, v) for k, v in sorted_by_owners if v.get('owners_improvement_pct', 0) > 0][:15]
+
+                if top_15_owners:
+                    # Create chart
+                    chart_data = pd.DataFrame([
+                        {
+                            'Feature': feat.replace('tag_', '').replace('_', ' ').title(),
+                            'Improvement %': impact['owners_improvement_pct'],
+                            'Type': impact['type']
+                        }
+                        for feat, impact in top_15_owners
+                    ])
+
+                    fig = px.bar(
+                        chart_data,
+                        x='Improvement %',
+                        y='Feature',
+                        orientation='h',
+                        title='Top 15 Features for Increasing Owners',
+                        color='Improvement %',
+                        color_continuous_scale='Blues',
+                        height=600
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # Detailed breakdown
+                    with st.expander("📊 View Detailed Breakdown"):
+                        for feat, impact in top_15_owners:
+                            feat_name = feat.replace('tag_', '').replace('_', ' ').title()
+                            pct = impact['owners_improvement_pct']
+
+                            if impact['type'] == 'binary':
+                                with_val = impact['owners_with']
+                                without_val = impact['owners_without']
+                                sample_with = impact['sample_with']
+                                sample_without = impact['sample_without']
+                                st.markdown(f"""
+                                **{feat_name}**: +{pct}%
+                                - With feature: {with_val:,} owners ({sample_with} games)
+                                - Without feature: {without_val:,} owners ({sample_without} games)
+                                """)
+                            else:
+                                top_val = impact['owners_top25']
+                                bottom_val = impact['owners_bottom25']
+                                q75 = impact.get('q75_value', 0)
+                                q25 = impact.get('q25_value', 0)
+                                st.markdown(f"""
+                                **{feat_name}**: +{pct}%
+                                - Top 25% (≥{q75}): {top_val:,} owners
+                                - Bottom 25% (≤{q25}): {bottom_val:,} owners
+                                """)
+
+            with col_rev:
+                st.markdown("### ⭐ Features That Improve Review Ratio")
+
+                # Sort by review improvement
+                sorted_by_reviews = sorted(
+                    feature_impacts.items(),
+                    key=lambda x: x[1].get('reviews_improvement_pct', 0),
+                    reverse=True
+                )
+
+                # Show top 15
+                top_15_reviews = [(k, v) for k, v in sorted_by_reviews if v.get('reviews_improvement_pct', 0) > 0][:15]
+
+                if top_15_reviews:
+                    # Create chart
+                    chart_data = pd.DataFrame([
+                        {
+                            'Feature': feat.replace('tag_', '').replace('_', ' ').title(),
+                            'Improvement %': impact['reviews_improvement_pct'],
+                            'Type': impact['type']
+                        }
+                        for feat, impact in top_15_reviews
+                    ])
+
+                    fig = px.bar(
+                        chart_data,
+                        x='Improvement %',
+                        y='Feature',
+                        orientation='h',
+                        title='Top 15 Features for Improving Review Ratio',
+                        color='Improvement %',
+                        color_continuous_scale='Greens',
+                        height=600
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+
+                    # Detailed breakdown
+                    with st.expander("📊 View Detailed Breakdown"):
+                        for feat, impact in top_15_reviews:
+                            feat_name = feat.replace('tag_', '').replace('_', ' ').title()
+                            pct = impact['reviews_improvement_pct']
+
+                            if impact['type'] == 'binary':
+                                with_val = impact['reviews_with']
+                                without_val = impact['reviews_without']
+                                sample_with = impact['sample_with']
+                                sample_without = impact['sample_without']
+                                st.markdown(f"""
+                                **{feat_name}**: +{pct}%
+                                - With feature: {with_val:.1%} ratio ({sample_with} games)
+                                - Without feature: {without_val:.1%} ratio ({sample_without} games)
+                                """)
+                            else:
+                                top_val = impact['reviews_top25']
+                                bottom_val = impact['reviews_bottom25']
+                                q75 = impact.get('q75_value', 0)
+                                q25 = impact.get('q25_value', 0)
+                                st.markdown(f"""
+                                **{feat_name}**: +{pct}%
+                                - Top 25% (≥{q75}): {top_val:.1%} ratio
+                                - Bottom 25% (≤{q25}): {bottom_val:.1%} ratio
+                                """)
+        else:
+            st.warning("Feature impact data not available. Please retrain the models.")
+
     with tab2:
         st.subheader("🎯 Feature Importance")
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.write("**For Predicting Owners:**")
             if 'feature_importance_owners' in data_analysis:
@@ -1028,7 +1289,7 @@ def data_analysis_page():
                     color_continuous_scale='Viridis'
                 )
                 st.plotly_chart(fig_owners, use_container_width=True)
-        
+
         with col2:
             st.write("**For Predicting Review Ratio:**")
             if 'feature_importance_reviews' in data_analysis:
@@ -1042,8 +1303,53 @@ def data_analysis_page():
                     color_continuous_scale='Plasma'
                 )
                 st.plotly_chart(fig_reviews, use_container_width=True)
-    
+
     with tab3:
+        st.subheader("🔗 Correlation Matrix")
+
+        if 'correlations' in data_analysis:
+            corr_matrix = data_analysis['correlations']
+
+            # Select important features
+            important_features = ['price', 'owners', 'review_ratio', 'windows', 'mac', 'linux']
+            available_features = [f for f in important_features if f in corr_matrix.columns]
+
+            # Add some tag features
+            tag_features = [col for col in corr_matrix.columns if col.startswith('tag_')][:5]
+            available_features.extend(tag_features)
+
+            # Create subset correlation matrix
+            subset_corr = corr_matrix.loc[available_features, available_features]
+
+            # Create heatmap
+            fig = px.imshow(
+                subset_corr,
+                labels=dict(x="Features", y="Features", color="Correlation"),
+                x=available_features,
+                y=available_features,
+                color_continuous_scale="RdBu",
+                aspect="auto",
+                title="Feature Correlation Heatmap (Actual Steam Data)"
+            )
+            fig.update_layout(height=600)
+            st.plotly_chart(fig, use_container_width=True)
+
+            # Key insights
+            st.markdown("**📊 Key Data Insights:**")
+
+            price_owners_corr = corr_matrix.loc['price', 'owners'] if 'price' in corr_matrix.index else 0
+            windows_owners_corr = corr_matrix.loc['windows', 'owners'] if 'windows' in corr_matrix.index else 0
+
+            insights = [
+                f"• **Price Impact**: Correlation with owners is {price_owners_corr:.3f}",
+                f"• **Windows Platform**: Correlation with owners is {windows_owners_corr:.3f}",
+                f"• **Dataset Size**: Analysis based on {len(df)} games",
+            ]
+
+            for insight in insights:
+                st.markdown(insight)
+
+    with tab4:
         st.subheader("📊 Trend Analysis from Steam Data")
         
         # Price distribution analysis
@@ -1218,8 +1524,8 @@ def data_analysis_page():
                     xaxis={'categoryorder':'total descending'}
                 )
                 st.plotly_chart(fig_platform_performance, use_container_width=True)
-    
-    with tab4:
+
+    with tab5:
         st.subheader("🎯 Model Performance Metrics")
 
         # Calculate metrics
