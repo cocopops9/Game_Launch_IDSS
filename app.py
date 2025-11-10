@@ -9,6 +9,7 @@ import numpy as np
 import os
 import json
 from datetime import datetime
+import time
 import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -548,18 +549,20 @@ def generate_data_driven_recommendations(prediction_results, input_features, dat
     return recommendations
 
 def save_game_configuration(game_name, features, predictions):
-    """Save game configuration with proper naming for duplicates"""
-    # Generate unique name if duplicate exists
+    """Save game configuration with unique ID"""
     original_name = game_name
-    counter = 1
 
     # Check if game already exists in saved games
     if original_name not in st.session_state.saved_games:
         st.session_state.saved_games[original_name] = []
 
+    # Generate UNIQUE config_id using timestamp to avoid duplicates after deletions
+    # Format: gamename_timestamp (e.g., "My Game_1699123456789")
+    unique_id = f"{original_name}_{int(time.time() * 1000)}"
+
     # Create configuration entry
     config = {
-        'config_id': f"{original_name}_config_{len(st.session_state.saved_games[original_name]) + 1}",
+        'config_id': unique_id,
         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         'game_name': original_name,
         'features': features.copy(),
