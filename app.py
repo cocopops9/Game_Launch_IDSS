@@ -464,6 +464,63 @@ def save_game_configuration(game_name, features, predictions):
 
     return original_name
 
+def delete_configuration(game_name, config_id):
+    """Delete a specific configuration"""
+    try:
+        # Find and remove from game's configuration list
+        if game_name in st.session_state.saved_games:
+            st.session_state.saved_games[game_name] = [
+                c for c in st.session_state.saved_games[game_name]
+                if c['config_id'] != config_id
+            ]
+
+            # If no configurations left for this game, remove the game entirely
+            if not st.session_state.saved_games[game_name]:
+                del st.session_state.saved_games[game_name]
+                # Clear last_saved_game if it was this game
+                if st.session_state.last_saved_game == game_name:
+                    st.session_state.last_saved_game = None
+
+        # Remove from global configurations list
+        st.session_state.configurations = [
+            c for c in st.session_state.configurations
+            if c['config_id'] != config_id
+        ]
+
+        # Persist to file
+        save_games_to_file()
+        return True
+    except Exception as e:
+        st.error(f"❌ Error deleting configuration: {e}")
+        return False
+
+def delete_game(game_name):
+    """Delete an entire game and all its configurations"""
+    try:
+        # Get all config IDs for this game
+        if game_name in st.session_state.saved_games:
+            config_ids = [c['config_id'] for c in st.session_state.saved_games[game_name]]
+
+            # Remove game from saved_games
+            del st.session_state.saved_games[game_name]
+
+            # Clear last_saved_game if it was this game
+            if st.session_state.last_saved_game == game_name:
+                st.session_state.last_saved_game = None
+
+            # Remove all configurations from global list
+            st.session_state.configurations = [
+                c for c in st.session_state.configurations
+                if c['config_id'] not in config_ids
+            ]
+
+            # Persist to file
+            save_games_to_file()
+            return True
+    except Exception as e:
+        st.error(f"❌ Error deleting game: {e}")
+        return False
+
 # Page functions
 def new_game_page():
     """New Game prediction page"""
@@ -695,22 +752,40 @@ def new_game_page():
 def my_games_page():
     """My Games page - view and manage saved configurations"""
     st.markdown('<h2 class="sub-header">📚 My Saved Games & Configurations</h2>', unsafe_allow_html=True)
-    
+
     if not st.session_state.saved_games:
         st.info("No saved games yet. Go to 'New Game' to create and save game configurations.")
         return
-    
+
     # Display games and their configurations
     st.subheader("🎮 Saved Games")
-    
-    for game_name, configs in st.session_state.saved_games.items():
-        with st.expander(f"📁 {game_name} ({len(configs)} configurations)"):
+
+    # Create a copy of items to iterate safely during deletion
+    games_list = list(st.session_state.saved_games.items())
+
+    for game_name, configs in games_list:
+        # Skip if game was deleted
+        if game_name not in st.session_state.saved_games:
+            continue
+
+        with st.expander(f"📁 {game_name} ({len(configs)} configurations)", expanded=False):
+            # Delete entire game button
+            col_del1, col_del2 = st.columns([3, 1])
+            with col_del2:
+                if st.button(f"🗑️ Delete Game", key=f"delete_game_{game_name}", type="secondary", use_container_width=True):
+                    if delete_game(game_name):
+                        st.success(f"✅ Deleted game '{game_name}' and all its configurations!")
+                        st.rerun()
+
+            st.markdown("---")
+
+            # Display each configuration
             for idx, config in enumerate(configs, 1):
-                col1, col2, col3, col4 = st.columns([1, 2, 2, 2])
-                
+                col1, col2, col3, col4, col5 = st.columns([1, 2, 2, 2, 1])
+
                 with col1:
                     st.write(f"**Config #{idx}**")
-                
+
                 with col2:
                     st.write(f"💰 ${config['features']['price']:.2f}")
                     platforms = []
@@ -718,14 +793,21 @@ def my_games_page():
                     if config['features'].get('mac', 0): platforms.append('Mac')
                     if config['features'].get('linux', 0): platforms.append('Linux')
                     st.write(f"🖥️ {'/'.join(platforms) if platforms else 'None'}")
-                
+
                 with col3:
                     st.write(f"👥 {int(config['predictions']['owners']):,} owners")
                     st.write(f"⭐ {config['predictions']['review_ratio']:.1%} reviews")
-                
+
                 with col4:
                     st.write(f"📅 {config['timestamp']}")
-                    
+
+                with col5:
+                    # Delete individual configuration button
+                    if st.button("🗑️", key=f"delete_config_{config['config_id']}", help="Delete this configuration"):
+                        if delete_configuration(game_name, config['config_id']):
+                            st.success(f"✅ Deleted configuration!")
+                            st.rerun()
+
                 st.markdown("---")
     
     # Display ranked configurations (all games)
