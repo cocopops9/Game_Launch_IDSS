@@ -1144,48 +1144,70 @@ def data_analysis_page():
     
     with tab4:
         st.subheader("🎯 Model Performance Metrics")
-        
+
         # Calculate metrics
         from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
-        
+
         # Make predictions on test set
         X_test_df = pd.DataFrame(models['X_test'], columns=models['feature_cols'])
         # Handle NaN values
-
         X_test_df = X_test_df.fillna(0)
-
-        
 
         owners_pred = models['owners_model'].predict(X_test_df)
         reviews_pred = models['review_model'].predict(X_test_df)
-        
-        # Calculate metrics
-        metrics_owners = {
-            'R² Score': r2_score(models['y_owners_test'], owners_pred),
-            'MAE': mean_absolute_error(models['y_owners_test'], owners_pred),
-            'RMSE': np.sqrt(mean_squared_error(models['y_owners_test'], owners_pred))
-        }
-        
-        metrics_reviews = {
-            'R² Score': r2_score(models['y_reviews_test'], reviews_pred),
-            'MAE': mean_absolute_error(models['y_reviews_test'], reviews_pred),
-            'RMSE': np.sqrt(mean_squared_error(models['y_reviews_test'], reviews_pred))
-        }
-        
+
+        # Calculate basic metrics
+        y_owners_actual = models['y_owners_test']
+        y_reviews_actual = models['y_reviews_test']
+
+        # Owners metrics
+        r2_owners = r2_score(y_owners_actual, owners_pred)
+        mae_owners = mean_absolute_error(y_owners_actual, owners_pred)
+        rmse_owners = np.sqrt(mean_squared_error(y_owners_actual, owners_pred))
+
+        # Normalized metrics for owners
+        mean_owners = np.mean(y_owners_actual)
+        mape_owners = np.mean(np.abs((y_owners_actual - owners_pred) / np.maximum(y_owners_actual, 1))) * 100
+        mae_pct_owners = (mae_owners / mean_owners) * 100
+        rmse_pct_owners = (rmse_owners / mean_owners) * 100
+
+        # Review ratio metrics
+        r2_reviews = r2_score(y_reviews_actual, reviews_pred)
+        mae_reviews = mean_absolute_error(y_reviews_actual, reviews_pred)
+        rmse_reviews = np.sqrt(mean_squared_error(y_reviews_actual, reviews_pred))
+
+        # Normalized metrics for reviews
+        mape_reviews = np.mean(np.abs((y_reviews_actual - reviews_pred) / np.maximum(y_reviews_actual, 0.01))) * 100
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.write("**Owners Prediction Model (GradientBoosting)**")
-            for metric, value in metrics_owners.items():
-                if metric == 'R² Score':
-                    st.metric(metric, f"{value:.3f}")
-                else:
-                    st.metric(metric, f"{value:,.0f}")
-        
+            st.metric("R² Score", f"{r2_owners:.3f}", help="Coefficient of determination (0=worst, 1=perfect)")
+            st.metric("MAPE", f"{mape_owners:.1f}%", help="Mean Absolute Percentage Error - average prediction error as %")
+            st.metric("MAE (% of mean)", f"{mae_pct_owners:.1f}%", help=f"Mean Absolute Error as % of average owners ({mean_owners:,.0f})")
+            st.metric("RMSE (% of mean)", f"{rmse_pct_owners:.1f}%", help=f"Root Mean Squared Error as % of average owners")
+
+            # Show raw metrics in expander
+            with st.expander("📊 Raw Metrics"):
+                st.write(f"**MAE:** {mae_owners:,.0f} owners")
+                st.write(f"**RMSE:** {rmse_owners:,.0f} owners")
+                st.write(f"**Mean Actual Owners:** {mean_owners:,.0f}")
+
         with col2:
             st.write("**Review Ratio Model (LightGBM)**")
-            for metric, value in metrics_reviews.items():
-                st.metric(metric, f"{value:.3f}")
+            st.metric("R² Score", f"{r2_reviews:.3f}", help="Coefficient of determination (0=worst, 1=perfect)")
+            st.metric("MAPE", f"{mape_reviews:.1f}%", help="Mean Absolute Percentage Error - average prediction error as %")
+            st.metric("MAE", f"{mae_reviews:.3f}", help="Mean Absolute Error (review ratio is 0-1 scale)")
+            st.metric("RMSE", f"{rmse_reviews:.3f}", help="Root Mean Squared Error (review ratio is 0-1 scale)")
+
+            # Show interpretation
+            with st.expander("📊 Interpretation"):
+                st.write(f"**Average Actual Review Ratio:** {np.mean(y_reviews_actual):.3f}")
+                st.write(f"**Std Dev:** {np.std(y_reviews_actual):.3f}")
+                if r2_reviews < 0:
+                    st.warning("⚠️ Negative R² indicates the model performs worse than simply predicting the mean.")
+                    st.write("This suggests review ratio is hard to predict from the available features.")
         
         # Scatter plots
         st.subheader("Prediction vs Actual Values")
