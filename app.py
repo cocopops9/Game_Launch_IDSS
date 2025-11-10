@@ -46,6 +46,8 @@ if 'configurations' not in st.session_state:
     st.session_state.configurations = []  # List of all saved configurations
 if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False  # Flag to track if we've loaded from file
+if 'last_saved_game' not in st.session_state:
+    st.session_state.last_saved_game = None  # Track last saved game for success message
 
 # Custom CSS
 st.markdown("""
@@ -464,7 +466,23 @@ def save_game_configuration(game_name, features, predictions):
 def new_game_page():
     """New Game prediction page"""
     st.markdown('<h2 class="sub-header">🎮 New Game Prediction</h2>', unsafe_allow_html=True)
-    
+
+    # Debug info - show saved games status
+    with st.expander("🔍 Debug: Saved Games Status"):
+        st.write(f"**Games in memory:** {len(st.session_state.saved_games)} games, {len(st.session_state.configurations)} total configurations")
+        if st.session_state.saved_games:
+            for game_name, configs in st.session_state.saved_games.items():
+                st.write(f"  - {game_name}: {len(configs)} configuration(s)")
+
+        if os.path.exists(SAVED_GAMES_FILE):
+            file_size = os.path.getsize(SAVED_GAMES_FILE)
+            st.write(f"**File on disk:** `{os.path.abspath(SAVED_GAMES_FILE)}` ({file_size} bytes)")
+            with open(SAVED_GAMES_FILE, 'r') as f:
+                data = json.load(f)
+                st.write(f"**In file:** {len(data.get('saved_games', {}))} games, {len(data.get('configurations', []))} configurations")
+        else:
+            st.write(f"**File on disk:** Not found at `{os.path.abspath(SAVED_GAMES_FILE)}`")
+
     # Load data and models
     df, loader = load_steam_data()
     
@@ -636,20 +654,31 @@ def new_game_page():
         
         # Save configuration button
         st.markdown("---")
+
+        # Show success message from previous save (persists across reruns)
+        if st.session_state.last_saved_game:
+            st.success(f"✅ Last saved: **{st.session_state.last_saved_game}** - Total configurations: {len(st.session_state.saved_games.get(st.session_state.last_saved_game, []))}")
+
         if st.button("💾 Save This Configuration", use_container_width=True, type="primary"):
             saved_name = save_game_configuration(
                 game_name,
                 input_features,
                 st.session_state.current_predictions
             )
-            st.success(f"✅ Configuration saved for **{saved_name}**! Total configurations: {len(st.session_state.saved_games[saved_name])}")
+            # Set the flag for next render
+            st.session_state.last_saved_game = saved_name
+
+            # Show immediate feedback
+            st.balloons()
             st.toast(f"✅ Saved {saved_name}!", icon="✅")
 
             # Show file location
-            st.info(f"💾 Saved to: `{os.path.abspath(SAVED_GAMES_FILE)}`")
+            if os.path.exists(SAVED_GAMES_FILE):
+                file_size = os.path.getsize(SAVED_GAMES_FILE)
+                st.info(f"💾 Saved to: `{os.path.abspath(SAVED_GAMES_FILE)}` ({file_size} bytes)")
 
-            # Force a small rerun to update "My Games" tab
-            st.balloons()
+            # Rerun to show success message
+            st.rerun()
 
 def my_games_page():
     """My Games page - view and manage saved configurations"""
@@ -856,7 +885,6 @@ def data_analysis_page():
                 x='price',
                 y='owners',
                 title="Price vs Owners (Sample of 500 games)",
-                trendline="lowess",
                 opacity=0.6
             )
             fig_price_owners.update_layout(
