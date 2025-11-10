@@ -127,9 +127,19 @@ def save_games_to_file():
 
         with open(SAVED_GAMES_FILE, 'w') as f:
             json.dump(data, f, indent=2)
-        return True
+
+        # Verify file was created
+        if os.path.exists(SAVED_GAMES_FILE):
+            file_size = os.path.getsize(SAVED_GAMES_FILE)
+            print(f"✅ Saved games to {SAVED_GAMES_FILE} ({file_size} bytes)")
+            return True
+        else:
+            st.error(f"❌ File {SAVED_GAMES_FILE} was not created")
+            return False
     except Exception as e:
         st.error(f"❌ Error saving games: {e}")
+        import traceback
+        print(traceback.format_exc())
         return False
 
 # Load saved games on app startup
@@ -628,16 +638,18 @@ def new_game_page():
         st.markdown("---")
         if st.button("💾 Save This Configuration", use_container_width=True, type="primary"):
             saved_name = save_game_configuration(
-                game_name, 
-                input_features, 
+                game_name,
+                input_features,
                 st.session_state.current_predictions
             )
-            st.markdown(f"""
-            <div class="success-box">
-                ✅ Configuration saved for <strong>{saved_name}</strong>! 
-                Total configurations for this game: {len(st.session_state.saved_games[saved_name])}
-            </div>
-            """, unsafe_allow_html=True)
+            st.success(f"✅ Configuration saved for **{saved_name}**! Total configurations: {len(st.session_state.saved_games[saved_name])}")
+            st.toast(f"✅ Saved {saved_name}!", icon="✅")
+
+            # Show file location
+            st.info(f"💾 Saved to: `{os.path.abspath(SAVED_GAMES_FILE)}`")
+
+            # Force a small rerun to update "My Games" tab
+            st.balloons()
 
 def my_games_page():
     """My Games page - view and manage saved configurations"""
