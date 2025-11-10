@@ -106,13 +106,59 @@ def convert_numpy_types(obj):
         return [convert_numpy_types(item) for item in obj]
     return obj
 
+def migrate_old_config_ids(saved_games, configurations):
+    """Migrate old config_id format to new timestamp-based format"""
+    migrated = False
+
+    # Fix config IDs in saved_games
+    for game_name, configs in saved_games.items():
+        for i, config in enumerate(configs):
+            old_id = config.get('config_id', '')
+            # Check if it's the old format (e.g., "Game_config_1")
+            if old_id.endswith(f'_config_{i+1}') or '_config_' in old_id and not old_id.split('_')[-1].isdigit() or len(old_id.split('_')[-1]) < 10:
+                # Generate new unique ID
+                new_id = f"{game_name}_{int(time.time() * 1000)}_{i}"
+                config['config_id'] = new_id
+                migrated = True
+
+    # Fix config IDs in configurations list
+    for config in configurations:
+        game_name = config.get('game_name', '')
+        old_id = config.get('config_id', '')
+        # Check if old format
+        if '_config_' in old_id and not old_id.split('_')[-1].isdigit() or (old_id.split('_')[-1].isdigit() and len(old_id.split('_')[-1]) < 10):
+            # Find matching config in saved_games to get the new ID
+            if game_name in saved_games:
+                for saved_config in saved_games[game_name]:
+                    if saved_config.get('timestamp') == config.get('timestamp'):
+                        config['config_id'] = saved_config['config_id']
+                        break
+
+    return saved_games, configurations, migrated
+
 def load_saved_games():
-    """Load saved games from JSON file"""
+    """Load saved games from JSON file and migrate old IDs if needed"""
     if os.path.exists(SAVED_GAMES_FILE):
         try:
             with open(SAVED_GAMES_FILE, 'r') as f:
                 data = json.load(f)
-                return data.get('saved_games', {}), data.get('configurations', [])
+                saved_games = data.get('saved_games', {})
+                configurations = data.get('configurations', [])
+
+                # Migrate old config_ids to new format
+                saved_games, configurations, migrated = migrate_old_config_ids(saved_games, configurations)
+
+                if migrated:
+                    print("🔄 Migrated old config IDs to new timestamp-based format")
+                    # Save the migrated data
+                    data = {
+                        'saved_games': saved_games,
+                        'configurations': configurations
+                    }
+                    with open(SAVED_GAMES_FILE, 'w') as f:
+                        json.dump(data, f, indent=2)
+
+                return saved_games, configurations
         except (json.JSONDecodeError, IOError) as e:
             st.warning(f"⚠️ Could not load saved games: {e}")
             return {}, []
