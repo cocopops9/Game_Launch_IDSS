@@ -48,6 +48,8 @@ if 'data_loaded' not in st.session_state:
     st.session_state.data_loaded = False  # Flag to track if we've loaded from file
 if 'last_saved_game' not in st.session_state:
     st.session_state.last_saved_game = None  # Track last saved game for success message
+if 'show_predictions' not in st.session_state:
+    st.session_state.show_predictions = False  # Track if predictions should be shown
 
 # Custom CSS
 st.markdown("""
@@ -549,27 +551,27 @@ def new_game_page():
     
     # Prediction button
     col1, col2 = st.columns([1, 3])
-    
+
     with col1:
         predict_button = st.button("🔮 Predict", type="primary", use_container_width=True)
-    
+
     # Handle predictions
     if predict_button:
         # Prepare data for prediction
         X_pred = pd.DataFrame([input_features])[models['feature_cols']]
-        
+
         # Make predictions
         owners_pred = models['owners_model'].predict(X_pred)[0]
         review_pred = models['review_model'].predict(X_pred)[0]
-        
+
         # Ensure predictions are reasonable
         owners_pred = max(100, owners_pred)
         review_pred = np.clip(review_pred, 0.1, 0.99)
-        
+
         # Calculate prediction ranges (±40% for owners based on model uncertainty)
         owners_lower = int(owners_pred * 0.6)
         owners_upper = int(owners_pred * 1.4)
-        
+
         # Format owners as range string
         def format_owners_range(lower, upper):
             """Format owners count into readable range"""
@@ -579,9 +581,9 @@ def new_game_page():
                 return f"{lower//1000:,}K - {upper//1000:,}K"
             else:
                 return f"{lower//1000000:.1f}M - {upper//1000000:.1f}M"
-        
+
         owners_range_str = format_owners_range(owners_lower, owners_upper)
-        
+
         # Store predictions
         st.session_state.current_predictions = {
             'game_name': game_name,
@@ -592,13 +594,22 @@ def new_game_page():
             'review_ratio': review_pred,
             'features': input_features
         }
-        
-        # Display results
+
+        # Set flag to show predictions
+        st.session_state.show_predictions = True
+
+    # Display results (outside the button click, so they persist)
+    if st.session_state.show_predictions and st.session_state.current_predictions:
+        # Extract predictions from session state
+        preds = st.session_state.current_predictions
+        owners_pred = preds['owners']
+        review_pred = preds['review_ratio']
+
         st.markdown("---")
         st.markdown('<h3 style="color: #4ECDC4;">📊 Prediction Results</h3>', unsafe_allow_html=True)
-        
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
             st.markdown('<div class="metric-card">', unsafe_allow_html=True)
             st.metric(
@@ -607,7 +618,7 @@ def new_game_page():
                 delta=f"±{int(owners_pred * 0.15):,}"
             )
             st.markdown('</div>', unsafe_allow_html=True)
-        
+
         with col2:
             st.markdown('<div class="metric-card">', unsafe_allow_html=True)
             st.metric(
@@ -660,9 +671,10 @@ def new_game_page():
             st.success(f"✅ Last saved: **{st.session_state.last_saved_game}** - Total configurations: {len(st.session_state.saved_games.get(st.session_state.last_saved_game, []))}")
 
         if st.button("💾 Save This Configuration", use_container_width=True, type="primary"):
+            # Use the game name and features from the predictions
             saved_name = save_game_configuration(
-                game_name,
-                input_features,
+                preds['game_name'],
+                preds['features'],
                 st.session_state.current_predictions
             )
             # Set the flag for next render
