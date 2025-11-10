@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import os
+import json
 from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
@@ -29,7 +30,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Initialize session state
+# Persistence file location
+SAVED_GAMES_FILE = "saved_games.json"
+
+# Initialize session state - we'll load from file after defining helper functions
 if 'saved_games' not in st.session_state:
     st.session_state.saved_games = {}  # Dictionary to store games and their configurations
 if 'current_predictions' not in st.session_state:
@@ -40,6 +44,8 @@ if 'data_analysis' not in st.session_state:
     st.session_state.data_analysis = {}
 if 'configurations' not in st.session_state:
     st.session_state.configurations = []  # List of all saved configurations
+if 'data_loaded' not in st.session_state:
+    st.session_state.data_loaded = False  # Flag to track if we've loaded from file
 
 # Custom CSS
 st.markdown("""
@@ -79,6 +85,60 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Persistence functions
+def convert_numpy_types(obj):
+    """Convert numpy types to native Python types for JSON serialization"""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, dict):
+        return {key: convert_numpy_types(value) for key, value in obj.items()}
+    elif isinstance(obj, list):
+        return [convert_numpy_types(item) for item in obj]
+    return obj
+
+def load_saved_games():
+    """Load saved games from JSON file"""
+    if os.path.exists(SAVED_GAMES_FILE):
+        try:
+            with open(SAVED_GAMES_FILE, 'r') as f:
+                data = json.load(f)
+                return data.get('saved_games', {}), data.get('configurations', [])
+        except (json.JSONDecodeError, IOError) as e:
+            st.warning(f"⚠️ Could not load saved games: {e}")
+            return {}, []
+    return {}, []
+
+def save_games_to_file():
+    """Save games to JSON file"""
+    try:
+        # Convert numpy types to native Python types
+        saved_games = convert_numpy_types(st.session_state.saved_games)
+        configurations = convert_numpy_types(st.session_state.configurations)
+
+        data = {
+            'saved_games': saved_games,
+            'configurations': configurations
+        }
+
+        with open(SAVED_GAMES_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+        return True
+    except Exception as e:
+        st.error(f"❌ Error saving games: {e}")
+        return False
+
+# Load saved games on app startup
+if not st.session_state.data_loaded:
+    saved_games, configurations = load_saved_games()
+    if saved_games:
+        st.session_state.saved_games = saved_games
+        st.session_state.configurations = configurations
+    st.session_state.data_loaded = True
 
 @st.cache_data
 def load_steam_data():
@@ -365,11 +425,11 @@ def save_game_configuration(game_name, features, predictions):
     # Generate unique name if duplicate exists
     original_name = game_name
     counter = 1
-    
+
     # Check if game already exists in saved games
     if original_name not in st.session_state.saved_games:
         st.session_state.saved_games[original_name] = []
-    
+
     # Create configuration entry
     config = {
         'config_id': f"{original_name}_config_{len(st.session_state.saved_games[original_name]) + 1}",
@@ -378,13 +438,16 @@ def save_game_configuration(game_name, features, predictions):
         'features': features.copy(),
         'predictions': predictions.copy()
     }
-    
+
     # Add to game's configurations
     st.session_state.saved_games[original_name].append(config)
-    
+
     # Also add to global configurations list for ranking
     st.session_state.configurations.append(config)
-    
+
+    # Persist to file
+    save_games_to_file()
+
     return original_name
 
 # Page functions
