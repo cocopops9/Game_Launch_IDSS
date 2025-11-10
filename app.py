@@ -469,129 +469,83 @@ def train_models(df, _loader):
     }
 
 def generate_data_driven_recommendations(prediction_results, input_features, data_analysis):
-    """Generate recommendations based on actual data analysis"""
+    """Generate recommendations based on improvement analysis"""
     recommendations = []
-    
-    # Get correlation data
-    correlations = data_analysis.get('correlations', pd.DataFrame())
-    price_impact = data_analysis.get('price_impact', -0.3)
-    platform_impacts = data_analysis.get('platform_impacts', {})
-    avg_owners_by_price = data_analysis.get('average_owners_by_price', {})
-    avg_review_by_tag = data_analysis.get('average_review_by_tag', {})
+
+    # Get feature impacts and importance data
+    feature_impacts = data_analysis.get('feature_impacts', {})
     feature_importance_owners = data_analysis.get('feature_importance_owners', pd.DataFrame())
-    
+    feature_importance_reviews = data_analysis.get('feature_importance_reviews', pd.DataFrame())
+
     owners_pred = prediction_results['owners']
     review_pred = prediction_results['review_ratio']
     price = input_features.get('price', 0)
-    
-    # Price-based recommendations from actual data
-    if price > 0 and len(avg_owners_by_price) > 0:
-        # Find optimal price range from data
-        price_ranges = [(0, 10), (10, 20), (20, 30), (30, 40), (40, 50), (50, 60)]
-        current_range = None
-        for range_min, range_max in price_ranges:
-            if range_min <= price < range_max:
-                current_range = (range_min, range_max)
-                break
-        
-        if current_range:
-            best_range = None
-            best_owners = 0
-            for idx, value in avg_owners_by_price.items():
-                if value > best_owners:
-                    best_owners = value
-                    best_range = idx
-            
-            if best_range and str(best_range) != str(current_range):
-                improvement_pct = ((best_owners - owners_pred) / owners_pred * 100) if owners_pred > 0 else 0
-                if improvement_pct > 10:
-                    recommendations.append({
-                        'type': 'Price Optimization (Data-Driven)',
-                        'message': f'Based on {len(avg_owners_by_price)} analyzed games, titles in the {best_range} price range average {best_owners:.0f} owners. Consider adjusting your price to this range for potential {improvement_pct:.0f}% increase.',
-                        'priority': 'High',
-                        'data_confidence': 'Strong'
-                    })
-    
-    # Platform recommendations from actual correlation data
-    if not input_features.get('windows', 0) and 'windows' in platform_impacts:
-        windows_correlation = platform_impacts['windows']
-        if windows_correlation > 0.2:
-            expected_increase = windows_correlation * 100
-            recommendations.append({
-                'type': 'Platform Support (Data Analysis)',
-                'message': f'Analysis shows Windows support has a {windows_correlation:.2f} correlation with ownership. Adding Windows could increase reach by approximately {expected_increase:.0f}%.',
-                'priority': 'Critical',
-                'data_confidence': 'Very Strong'
-            })
-    
-    # Tag-based recommendations from actual review data
-    missing_beneficial_tags = []
-    for tag, avg_review in avg_review_by_tag.items():
-        if avg_review and avg_review > 0.75 and not input_features.get(tag, 0):
-            tag_name = tag.replace('tag_', '').replace('_', ' ')
-            missing_beneficial_tags.append((tag_name, avg_review))
-    
-    if missing_beneficial_tags:
-        best_tag = max(missing_beneficial_tags, key=lambda x: x[1])
-        recommendations.append({
-            'type': 'Genre/Feature Addition (Statistical)',
-            'message': f'Games with {best_tag[0]} tag average {best_tag[1]:.1%} positive reviews. Consider adding this feature/genre to improve reception.',
-            'priority': 'Medium',
-            'data_confidence': 'Moderate'
-        })
-    
-    # Release month recommendations based on data patterns
-    if 'release_month' in input_features:
-        month = input_features['release_month']
-        # Analyze seasonal patterns from the data
-        seasonal_patterns = {
-            'Q4': (10, 11, 12),  # Holiday season
-            'Q1': (1, 2, 3),     # Post-holiday
-            'Q2': (4, 5, 6),     # Spring
-            'Q3': (7, 8, 9)      # Summer
-        }
-        
-        current_quarter = [q for q, months in seasonal_patterns.items() if month in months][0]
-        
-        # This would ideally come from actual data analysis
-        quarter_performance = {
-            'Q4': 1.25,  # 25% better
-            'Q1': 0.95,
-            'Q2': 1.05,
-            'Q3': 0.90
-        }
-        
-        if current_quarter in ['Q1', 'Q3']:
-            recommendations.append({
-                'type': 'Release Timing (Historical Data)',
-                'message': f'Historical data shows Q4 releases perform {(quarter_performance["Q4"] - 1) * 100:.0f}% better. Consider shifting to October-December.',
-                'priority': 'Low',
-                'data_confidence': 'Moderate'
-            })
-    
-    # Feature importance based recommendations
-    if not feature_importance_owners.empty:
-        top_3_features = feature_importance_owners.head(3)['feature'].tolist()
-        
-        for feature in top_3_features:
-            if feature in input_features:
-                current_value = input_features[feature]
-                if feature == 'price' and current_value > 30:
-                    recommendations.append({
-                        'type': 'Key Factor Optimization',
-                        'message': f'Price is the #{list(top_3_features).index(feature) + 1} most important factor for ownership. Lower prices strongly correlate with more owners (correlation: {price_impact:.2f}).',
-                        'priority': 'High',
-                        'data_confidence': 'Strong'
-                    })
-    
+
+    # Identify top improvement opportunities based on feature impacts
+    if feature_impacts:
+        # Find features NOT currently used that would help
+        top_owner_improvements = sorted(
+            [(k, v) for k, v in feature_impacts.items() if v.get('owners_improvement_pct', 0) > 0],
+            key=lambda x: x[1].get('owners_improvement_pct', 0),
+            reverse=True
+        )[:5]
+
+        top_review_improvements = sorted(
+            [(k, v) for k, v in feature_impacts.items() if v.get('reviews_improvement_pct', 0) > 0],
+            key=lambda x: x[1].get('reviews_improvement_pct', 0),
+            reverse=True
+        )[:3]
+
+        # Recommend top owners improvement
+        if top_owner_improvements:
+            feat, impact = top_owner_improvements[0]
+            feat_name = feat.replace('tag_', '').replace('_', ' ').title()
+            pct = impact['owners_improvement_pct']
+
+            if impact['type'] == 'binary':
+                with_val = impact['owners_with']
+                without_val = impact['owners_without']
+                recommendations.append({
+                    'type': f'Top Opportunity: {feat_name}',
+                    'message': f'Games with {feat_name} have {pct:+.0f}% more owners ({without_val:,} → {with_val:,}). This is the biggest success factor in the dataset.',
+                    'priority': 'High',
+                    'data_confidence': 'Strong'
+                })
+            else:
+                top_val = impact['owners_top25']
+                bottom_val = impact['owners_bottom25']
+                recommendations.append({
+                    'type': f'Top Opportunity: {feat_name}',
+                    'message': f'Higher {feat_name} correlates with {pct:+.0f}% more owners (top 25%: {top_val:,} vs bottom 25%: {bottom_val:,}).',
+                    'priority': 'High',
+                    'data_confidence': 'Strong'
+                })
+
+        # Recommend top review improvement
+        if top_review_improvements:
+            feat, impact = top_review_improvements[0]
+            feat_name = feat.replace('tag_', '').replace('_', ' ').title()
+            pct = impact['reviews_improvement_pct']
+
+            if impact['type'] == 'binary':
+                with_val = impact['reviews_with']
+                without_val = impact['reviews_without']
+                recommendations.append({
+                    'type': f'Review Quality: {feat_name}',
+                    'message': f'Games with {feat_name} have {pct:+.0f}% better review ratios ({without_val:.1%} → {with_val:.1%}).',
+                    'priority': 'Medium',
+                    'data_confidence': 'Strong'
+                })
+
     # Model confidence indicator
+    feature_count = len(feature_impacts) if feature_impacts else len(feature_importance_owners)
     recommendations.append({
-        'type': 'Prediction Confidence',
-        'message': f'Model trained on {len(correlations)} features from real Steam data. Prediction confidence: High for similar games, moderate for unique combinations.',
+        'type': 'Model Information',
+        'message': f'Analysis based on {feature_count} features from real Steam data ({len(st.session_state.models.get("X_test", []))} test games). Improvements are calculated from actual game performance.',
         'priority': 'Info',
         'data_confidence': 'Model Metric'
     })
-    
+
     return recommendations
 
 def save_game_configuration(game_name, features, predictions):

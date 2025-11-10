@@ -148,7 +148,7 @@ class SteamDataLoader:
         print(f"    - NaN count: {df['owners'].isna().sum()}")
         print(f"    - Unique values: {df['owners'].nunique()}")
         
-        # Calculate review ratio
+        # Calculate review ratio - REQUIRE REAL DATA
         if 'positive_reviews' in df.columns and 'negative_reviews' in df.columns:
             df['positive_reviews'] = pd.to_numeric(df['positive_reviews'], errors='coerce').fillna(0)
             df['negative_reviews'] = pd.to_numeric(df['negative_reviews'], errors='coerce').fillna(0)
@@ -156,8 +156,10 @@ class SteamDataLoader:
             df['review_ratio'] = np.where(
                 total_reviews > 0,
                 df['positive_reviews'] / total_reviews,
-                0.7  # Default ratio if no reviews
+                0.7  # Default ratio if no reviews for that specific game
             )
+            df['positive_ratings'] = df['positive_reviews']
+            df['negative_ratings'] = df['negative_reviews']
         elif 'positive' in df.columns and 'negative' in df.columns:
             # Alternative column names
             df['positive_reviews'] = pd.to_numeric(df['positive'], errors='coerce').fillna(0)
@@ -168,10 +170,32 @@ class SteamDataLoader:
                 df['positive_reviews'] / total_reviews,
                 0.7
             )
+            df['positive_ratings'] = df['positive_reviews']
+            df['negative_ratings'] = df['negative_reviews']
+        elif 'positive_ratings' in df.columns and 'negative_ratings' in df.columns:
+            # Already have ratings columns
+            df['positive_ratings'] = pd.to_numeric(df['positive_ratings'], errors='coerce').fillna(0)
+            df['negative_ratings'] = pd.to_numeric(df['negative_ratings'], errors='coerce').fillna(0)
+            total_ratings = df['positive_ratings'] + df['negative_ratings']
+            df['review_ratio'] = np.where(
+                total_ratings > 0,
+                df['positive_ratings'] / total_ratings,
+                0.7
+            )
+            df['positive_reviews'] = df['positive_ratings']
+            df['negative_reviews'] = df['negative_ratings']
         else:
-            print("Warning: No review data found, using default ratio")
-            df['review_ratio'] = 0.7 + np.random.normal(0, 0.1, len(df))
-            df['review_ratio'] = np.clip(df['review_ratio'], 0.1, 0.99)
+            # NO FAKE DATA - Raise error if review data not found
+            available_cols = ', '.join(df.columns[:20])
+            raise ValueError(
+                f"ERROR: Review/rating data not found in steam.csv!\n"
+                f"Required columns (one of):\n"
+                f"  - 'positive_reviews' and 'negative_reviews'\n"
+                f"  - 'positive' and 'negative'\n"
+                f"  - 'positive_ratings' and 'negative_ratings'\n\n"
+                f"Available columns in your CSV: {available_cols}...\n\n"
+                f"Please check your steam.csv file has the correct column names."
+            )
         
         # Handle required age
         if 'required_age' in df.columns:
