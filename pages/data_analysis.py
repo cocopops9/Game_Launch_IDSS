@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
 from models import load_steam_data, train_models
