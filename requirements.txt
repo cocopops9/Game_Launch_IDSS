@@ -1,0 +1,18 @@
+# Game Launch Decision Support System - Dependencies
+# Updated to latest versions as of 2025-11-10
+
+# Core Framework
+streamlit==1.51.0
+
+# Data Processing
+pandas==2.3.3
+numpy==2.3.4
+
+# Data Visualization
+plotly==6.4.0
+seaborn==0.13.2
+matplotlib==3.10.7
+
+# Machine Learning
+scikit-learn==1.7.2
+lightgbm==4.6.0

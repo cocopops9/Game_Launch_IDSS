@@ -14,7 +14,12 @@ An intelligent web-based system to help game producers make data-driven decision
 - Save multiple configurations for comparison
 
 ### 2. **My Games**
-- View all saved game configurations in a ranked table
+- **Persistent Storage**: All games and configurations are saved to disk and survive page refreshes
+- **Three Organized Views**:
+  - **Games List**: Table of all your games with IDs, configuration counts, and performance stats
+  - **All Configurations**: Ranked table of configurations across all games with CSV export
+  - **Statistics**: Visual analytics with charts showing price vs owners and review distributions
+- **Per-Game Configuration Management**: Select individual games to view all their configurations
 - Compare different parameter sets and their predicted outcomes
 - Track timestamp and configuration history for each game
 - Sort configurations by predicted performance metrics
@@ -23,6 +28,7 @@ An intelligent web-based system to help game producers make data-driven decision
 - **Correlation Analysis**: Interactive heatmaps showing relationships between features from actual Steam data
 - **Feature Importance**: Understand which factors most influence success for both ownership and review predictions
 - **Trend Analysis**: Visualize price-performance relationships and seasonal patterns
+- **Platform Combination Analysis**: Bar charts showing game counts and performance by platform combinations (Windows Only, Mac Only, Linux Only, Windows+Mac, Windows+Linux, Mac+Linux, Windows+Mac+Linux)
 - **Model Performance**: Track prediction accuracy metrics (R², MAE, RMSE)
 
 ## 🚀 Quick Start
@@ -32,7 +38,6 @@ An intelligent web-based system to help game producers make data-driven decision
 1. Install required packages:
 ```bash
 pip install -r requirements.txt
-pip install statsmodels --break-system-packages
 ```
 
 2. Prepare your Steam data:
@@ -45,6 +50,17 @@ streamlit run app.py
 ```
 
 4. Open your browser to `http://localhost:8501`
+
+### Dependencies (Latest Versions)
+All dependencies are pinned to their latest stable versions in `requirements.txt`:
+- **Streamlit 1.51.0** - Web framework
+- **Pandas 2.3.3** - Data processing
+- **NumPy 2.3.4** - Numerical computing
+- **Plotly 6.4.0** - Interactive visualizations
+- **Scikit-learn 1.7.2** - Machine learning models
+- **LightGBM 4.6.0** - Gradient boosting
+- **Seaborn 0.13.2** - Statistical visualizations
+- **Matplotlib 3.10.7** - Plotting library
 
 ## 📊 Using Your Steam Data
 
@@ -150,7 +166,8 @@ The system displays:
 3. **Prediction**: ML models predict owners and review ratio based on trained models
 4. **Analysis**: System analyzes predictions against historical Steam data patterns
 5. **Recommendations**: Knowledge engine generates actionable insights from data
-6. **Storage**: Configurations saved in session state for comparison
+6. **Persistence**: Configurations automatically saved to `saved_games.json` for permanent storage
+7. **Comparison**: Access and compare configurations across sessions
 
 ## 🔍 Troubleshooting
 
@@ -158,9 +175,10 @@ The system displays:
 
 1. **File not found error**: Ensure `steam.csv` is in the same directory as `app.py`
 2. **Import errors**: Run `pip install -r requirements.txt` to install all dependencies
-3. **statsmodels missing**: Run `pip install statsmodels --break-system-packages`
-4. **Data validation warnings**: Check that CSV columns match expected format
-5. **Memory issues**: For very large datasets (100k+ games), consider sampling data
+3. **Data validation warnings**: Check that CSV columns match expected format
+4. **Memory issues**: For very large datasets (100k+ games), consider sampling data
+5. **Games not persisting**: Check write permissions for `saved_games.json` in the project directory
+6. **Version conflicts**: Use Python 3.11+ and install dependencies from requirements.txt with exact versions
 
 ## 🚀 Deployment
 
@@ -171,13 +189,12 @@ streamlit run app.py --server.port 8501
 
 ### Docker Deployment
 ```dockerfile
-FROM python:3.9-slim
+FROM python:3.11-slim
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-RUN pip install statsmodels --break-system-packages
 COPY . .
-CMD ["streamlit", "run", "app.py"]
+CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0"]
 ```
 
 ### Cloud Deployment
@@ -189,15 +206,20 @@ The app is compatible with:
 
 ## 📋 System Requirements
 
-- Python 3.8+
-- pandas, numpy
-- scikit-learn
-- lightgbm
-- streamlit
-- plotly
-- seaborn
-- matplotlib
-- statsmodels
+- **Python 3.11+** (tested with 3.11.14)
+- **Operating System**: Linux, macOS, or Windows
+- **RAM**: Minimum 4GB (8GB+ recommended for large datasets)
+- **Storage**: 500MB+ for dependencies and data
+
+### Python Dependencies (see requirements.txt)
+- streamlit==1.51.0
+- pandas==2.3.3
+- numpy==2.3.4
+- plotly==6.4.0
+- scikit-learn==1.7.2
+- lightgbm==4.6.0
+- seaborn==0.13.2
+- matplotlib==3.10.7
 
 ## 📝 Example Usage
 
