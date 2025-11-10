@@ -1013,27 +1013,115 @@ def data_analysis_page():
         
         # Platform analysis
         st.subheader("Platform Distribution Analysis")
-        platform_data = []
-        for platform in ['windows', 'mac', 'linux']:
-            if platform in df.columns:
-                platform_data.append({
-                    'Platform': platform.title(),
-                    'Games': df[platform].sum(),
-                    'Avg Owners': df[df[platform] == 1]['owners'].mean(),
-                    'Avg Review': df[df[platform] == 1]['review_ratio'].mean()
-                })
-        
-        if platform_data:
-            df_platforms = pd.DataFrame(platform_data)
-            
+
+        # Create platform combination categories
+        platform_combinations = []
+
+        # Define all possible platform combinations
+        df_platforms_temp = df.copy()
+        df_platforms_temp['windows'] = df_platforms_temp.get('windows', 0).fillna(0)
+        df_platforms_temp['mac'] = df_platforms_temp.get('mac', 0).fillna(0)
+        df_platforms_temp['linux'] = df_platforms_temp.get('linux', 0).fillna(0)
+
+        # Windows only
+        mask = (df_platforms_temp['windows'] == 1) & (df_platforms_temp['mac'] == 0) & (df_platforms_temp['linux'] == 0)
+        count = mask.sum()
+        if count > 0:
+            platform_combinations.append({
+                'Platform': 'Windows Only',
+                'Games': count,
+                'Avg Owners': df_platforms_temp[mask]['owners'].mean(),
+                'Avg Review': df_platforms_temp[mask]['review_ratio'].mean() if 'review_ratio' in df_platforms_temp.columns else 0
+            })
+
+        # Mac only
+        mask = (df_platforms_temp['windows'] == 0) & (df_platforms_temp['mac'] == 1) & (df_platforms_temp['linux'] == 0)
+        count = mask.sum()
+        if count > 0:
+            platform_combinations.append({
+                'Platform': 'Mac Only',
+                'Games': count,
+                'Avg Owners': df_platforms_temp[mask]['owners'].mean(),
+                'Avg Review': df_platforms_temp[mask]['review_ratio'].mean() if 'review_ratio' in df_platforms_temp.columns else 0
+            })
+
+        # Linux only
+        mask = (df_platforms_temp['windows'] == 0) & (df_platforms_temp['mac'] == 0) & (df_platforms_temp['linux'] == 1)
+        count = mask.sum()
+        if count > 0:
+            platform_combinations.append({
+                'Platform': 'Linux Only',
+                'Games': count,
+                'Avg Owners': df_platforms_temp[mask]['owners'].mean(),
+                'Avg Review': df_platforms_temp[mask]['review_ratio'].mean() if 'review_ratio' in df_platforms_temp.columns else 0
+            })
+
+        # Windows + Mac
+        mask = (df_platforms_temp['windows'] == 1) & (df_platforms_temp['mac'] == 1) & (df_platforms_temp['linux'] == 0)
+        count = mask.sum()
+        if count > 0:
+            platform_combinations.append({
+                'Platform': 'Windows + Mac',
+                'Games': count,
+                'Avg Owners': df_platforms_temp[mask]['owners'].mean(),
+                'Avg Review': df_platforms_temp[mask]['review_ratio'].mean() if 'review_ratio' in df_platforms_temp.columns else 0
+            })
+
+        # Windows + Linux
+        mask = (df_platforms_temp['windows'] == 1) & (df_platforms_temp['mac'] == 0) & (df_platforms_temp['linux'] == 1)
+        count = mask.sum()
+        if count > 0:
+            platform_combinations.append({
+                'Platform': 'Windows + Linux',
+                'Games': count,
+                'Avg Owners': df_platforms_temp[mask]['owners'].mean(),
+                'Avg Review': df_platforms_temp[mask]['review_ratio'].mean() if 'review_ratio' in df_platforms_temp.columns else 0
+            })
+
+        # Mac + Linux
+        mask = (df_platforms_temp['windows'] == 0) & (df_platforms_temp['mac'] == 1) & (df_platforms_temp['linux'] == 1)
+        count = mask.sum()
+        if count > 0:
+            platform_combinations.append({
+                'Platform': 'Mac + Linux',
+                'Games': count,
+                'Avg Owners': df_platforms_temp[mask]['owners'].mean(),
+                'Avg Review': df_platforms_temp[mask]['review_ratio'].mean() if 'review_ratio' in df_platforms_temp.columns else 0
+            })
+
+        # Windows + Mac + Linux (All platforms)
+        mask = (df_platforms_temp['windows'] == 1) & (df_platforms_temp['mac'] == 1) & (df_platforms_temp['linux'] == 1)
+        count = mask.sum()
+        if count > 0:
+            platform_combinations.append({
+                'Platform': 'All Platforms',
+                'Games': count,
+                'Avg Owners': df_platforms_temp[mask]['owners'].mean(),
+                'Avg Review': df_platforms_temp[mask]['review_ratio'].mean() if 'review_ratio' in df_platforms_temp.columns else 0
+            })
+
+        if platform_combinations:
+            df_platforms = pd.DataFrame(platform_combinations)
+
             col1, col2 = st.columns(2)
-            
+
             with col1:
-                fig_platform_games = px.pie(
+                # Bar chart instead of pie chart for platform combinations
+                fig_platform_games = px.bar(
                     df_platforms,
-                    values='Games',
-                    names='Platform',
-                    title="Games by Platform Support"
+                    x='Platform',
+                    y='Games',
+                    title="Games by Platform Combination",
+                    text='Games',
+                    color='Games',
+                    color_continuous_scale='Blues'
+                )
+                fig_platform_games.update_traces(texttemplate='%{text}', textposition='outside')
+                fig_platform_games.update_layout(
+                    xaxis_title="Platform Combination",
+                    yaxis_title="Number of Games",
+                    showlegend=False,
+                    xaxis={'categoryorder':'total descending'}
                 )
                 st.plotly_chart(fig_platform_games, use_container_width=True)
             
@@ -1042,9 +1130,15 @@ def data_analysis_page():
                     df_platforms,
                     x='Platform',
                     y='Avg Owners',
-                    title="Average Owners by Platform",
+                    title="Average Owners by Platform Combination",
                     color='Avg Review',
-                    color_continuous_scale='Viridis'
+                    color_continuous_scale='Viridis',
+                    labels={'Avg Owners': 'Average Owners', 'Avg Review': 'Avg Review Ratio'}
+                )
+                fig_platform_performance.update_layout(
+                    xaxis_title="Platform Combination",
+                    yaxis_title="Average Number of Owners",
+                    xaxis={'categoryorder':'total descending'}
                 )
                 st.plotly_chart(fig_platform_performance, use_container_width=True)
     
