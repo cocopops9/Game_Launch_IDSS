@@ -7,6 +7,7 @@ import json
 import pandas as pd
 import numpy as np
 import streamlit as st
+import plotly.express as px
 
 from models import load_steam_data, train_models
 from recommendations import generate_data_driven_recommendations
