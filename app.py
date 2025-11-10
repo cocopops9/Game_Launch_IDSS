@@ -175,118 +175,183 @@ def load_steam_data():
 
 @st.cache_resource
 def train_models(df, _loader):
-    """Train enhanced machine learning models with better feature engineering"""
-    # Get feature columns
-    feature_cols = _loader.get_feature_columns()
-    X = df[feature_cols]
-    y_owners = df['owners']
+    """Train enhanced machine learning models with log transformation and all features"""
+
+    # Extract all available features from the dataset
+    feature_cols = []
+
+    # Basic features
+    for col in ['price', 'required_age', 'release_month', 'release_year', 'is_free']:
+        if col in df.columns:
+            feature_cols.append(col)
+
+    # Platform features
+    for col in ['windows', 'mac', 'linux']:
+        if col in df.columns:
+            feature_cols.append(col)
+
+    # Engagement features (from positive/negative ratings)
+    if 'positive_ratings' in df.columns and 'negative_ratings' in df.columns:
+        df['total_ratings'] = df['positive_ratings'] + df['negative_ratings']
+        df['engagement_score'] = np.log1p(df['total_ratings'])  # Log transform for better scale
+        feature_cols.extend(['total_ratings', 'engagement_score'])
+
+    # Playtime features
+    for col in ['average_playtime', 'median_playtime']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            feature_cols.append(col)
+
+    # Achievement feature
+    if 'achievements' in df.columns:
+        df['achievements'] = pd.to_numeric(df['achievements'], errors='coerce').fillna(0)
+        df['has_achievements'] = (df['achievements'] > 0).astype(int)
+        feature_cols.extend(['achievements', 'has_achievements'])
+
+    # Game age (days since release)
+    if 'release_date' in df.columns:
+        df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
+        reference_date = pd.Timestamp('2017-01-01')  # Use a fixed reference date
+        df['game_age_days'] = (reference_date - df['release_date']).dt.days
+        df['game_age_days'] = df['game_age_days'].fillna(365).clip(0, 10000)  # Cap at ~27 years
+        feature_cols.append('game_age_days')
+
+    # Tag/genre features
+    tag_cols = [col for col in df.columns if col.startswith('tag_')]
+    feature_cols.extend(tag_cols)
+
+    # Categories count (if available)
+    if 'categories' in df.columns:
+        df['num_categories'] = df['categories'].fillna('').str.split(';').str.len()
+        feature_cols.append('num_categories')
+
+    # Genres count (if available)
+    if 'genres' in df.columns and isinstance(df['genres'].iloc[0], str):
+        df['num_genres'] = df['genres'].fillna('').str.split(';').str.len()
+        feature_cols.append('num_genres')
+
+    print(f"  📊 Using {len(feature_cols)} features from dataset")
+
+    # Prepare features and targets
+    X = df[feature_cols].copy()
+
+    # LOG TRANSFORM OWNERS (Critical for handling 10K-200M range!)
+    df['log_owners'] = np.log1p(df['owners'])
+    y_owners_log = df['log_owners']
+
+    # Review ratio target
     y_reviews = df['review_ratio']
-    
-    # Validate data before training
+
+    # Validate data
     print(f"  📊 Training data shape: {X.shape}")
     print(f"  📊 Feature columns: {len(X.columns)}")
-    print(f"  📊 Target ranges - Owners: [{y_owners.min():.0f}, {y_owners.max():.0f}]")
-    print(f"  📊 Target ranges - Reviews: [{y_reviews.min():.2f}, {y_reviews.max():.2f}]")
-        
-    # Validate data before training
-    print(f"  📊 Training data shape: {X.shape}")
-    print(f"  📊 Feature columns: {len(X.columns)}")
-    print(f"  📊 Target ranges - Owners: [{y_owners.min():.0f}, {y_owners.max():.0f}]")
-    print(f"  📊 Target ranges - Reviews: [{y_reviews.min():.2f}, {y_reviews.max():.2f}]")
-        
-    # Validate data before training
-    print(f"  📊 Training data shape: {X.shape}")
-    print(f"  📊 Feature columns: {len(X.columns)}")
-    print(f"  📊 Target ranges - Owners: [{y_owners.min():.0f}, {y_owners.max():.0f}]")
-    print(f"  📊 Target ranges - Reviews: [{y_reviews.min():.2f}, {y_reviews.max():.2f}]")
-        
+    print(f"  📊 Original Owners range: [{df['owners'].min():.0f}, {df['owners'].max():.0f}]")
+    print(f"  📊 Log Owners range: [{y_owners_log.min():.2f}, {y_owners_log.max():.2f}]")
+    print(f"  📊 Review Ratio range: [{y_reviews.min():.2f}, {y_reviews.max():.2f}]")
+
     # Feature engineering - create interaction features
+    X_engineered = X.copy()
+
     if 'price' in X.columns:
-        X['price_squared'] = X['price'] ** 2
-        X['price_log'] = np.log1p(X['price'])
-    
+        X_engineered['price_squared'] = X['price'] ** 2
+        X_engineered['price_log'] = np.log1p(X['price'])
+
     # Platform interactions
-    if 'windows' in X.columns and 'mac' in X.columns:
-        X['multi_platform'] = X['windows'] + X['mac'] + X['linux']
-        X['windows_exclusive'] = (X['windows'] == 1) & (X['mac'] == 0) & (X['linux'] == 0)
-    
-    # Genre interactions
-    genre_cols = [col for col in X.columns if col.startswith('tag_')]
-    X['total_tags'] = X[genre_cols].sum(axis=1)
-    
+    if 'windows' in X.columns and 'mac' in X.columns and 'linux' in X.columns:
+        X_engineered['multi_platform'] = X['windows'] + X['mac'] + X['linux']
+        X_engineered['windows_exclusive'] = ((X['windows'] == 1) & (X['mac'] == 0) & (X['linux'] == 0)).astype(int)
+        X_engineered['cross_platform'] = (X_engineered['multi_platform'] >= 2).astype(int)
+
+    # Genre/tag diversity
+    if tag_cols:
+        X_engineered['total_tags'] = X[tag_cols].sum(axis=1)
+        X_engineered['tag_diversity'] = (X_engineered['total_tags'] > 3).astype(int)
+
+    # Price tier features
+    if 'price' in X.columns:
+        X_engineered['price_tier'] = pd.cut(X['price'], bins=[-0.1, 0, 5, 15, 30, 100],
+                                            labels=[0, 1, 2, 3, 4]).astype(int)
+
+    # Playtime engagement ratio
+    if 'average_playtime' in X.columns and 'median_playtime' in X.columns:
+        X_engineered['playtime_ratio'] = np.where(
+            X['median_playtime'] > 0,
+            X['average_playtime'] / (X['median_playtime'] + 1),
+            1.0
+        )
+
     # Split data
     X_train, X_test, y_owners_train, y_owners_test, y_reviews_train, y_reviews_test = train_test_split(
-        X, y_owners, y_reviews, test_size=0.2, random_state=42
+        X_engineered, y_owners_log, y_reviews, test_size=0.2, random_state=42
     )
-    
-    # Scale features for better prediction
-    scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
-    
-    # Train ownership model with GradientBoosting for better sensitivity
+
+    # Also keep original owners for metrics
+    _, _, y_owners_actual_train, y_owners_actual_test, _, _ = train_test_split(
+        X_engineered, df['owners'], y_reviews, test_size=0.2, random_state=42
+    )
+
+    # Clean feature names for LightGBM compatibility
+    X_train.columns = X_train.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
+    X_test.columns = X_test.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
+
+    # Train ownership model (predicting LOG of owners)
+    print("  🤖 Training Owners model with log-transformed target...")
     owners_model = GradientBoostingRegressor(
-        n_estimators=100,
-        learning_rate=0.1,
-        max_depth=4,
-        min_samples_split=20,
-        min_samples_leaf=10,
+        n_estimators=150,
+        learning_rate=0.08,
+        max_depth=5,
+        min_samples_split=15,
+        min_samples_leaf=8,
         random_state=42,
         subsample=0.8,
         max_features='sqrt'
     )
     owners_model.fit(X_train, y_owners_train)
-    
-    # Train review ratio model with LightGBM
+
+    # Train review ratio model
+    print("  🤖 Training Review Ratio model...")
     review_model = lgb.LGBMRegressor(
-        n_estimators=100,
+        n_estimators=150,
         learning_rate=0.05,
-        max_depth=5,
+        max_depth=6,
         num_leaves=31,
-        min_child_samples=20,
+        min_child_samples=15,
         random_state=42,
         verbose=-1,
         feature_fraction=0.8,
         bagging_fraction=0.8,
         bagging_freq=5,
-        reg_alpha=0.1,
-        reg_lambda=0.1
+        reg_alpha=0.15,
+        reg_lambda=0.15
     )
-    # Clean feature names for LightGBM compatibility
-    X_train.columns = X_train.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
-    X_test.columns = X_test.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
-    
-
     review_model.fit(X_train, y_reviews_train)
-    
+
     # Calculate feature importance
     feature_importance_owners = pd.DataFrame({
-        'feature': X.columns,
+        'feature': X_train.columns,
         'importance': owners_model.feature_importances_
     }).sort_values('importance', ascending=False)
-    
+
     feature_importance_reviews = pd.DataFrame({
-        'feature': X.columns,
+        'feature': X_train.columns,
         'importance': review_model.feature_importances_
     }).sort_values('importance', ascending=False)
-    
+
     # Calculate correlations for recommendations
-    # Calculate correlations (handle NaN values)
-    corr_data = df[feature_cols + ['owners', 'review_ratio']].copy()
-    # Remove any remaining NaN values
+    corr_cols = feature_cols + ['owners', 'review_ratio']
+    corr_data = df[[c for c in corr_cols if c in df.columns]].copy()
     corr_data = corr_data.fillna(0)
-    # Ensure all columns are numeric
     for col in corr_data.columns:
         corr_data[col] = pd.to_numeric(corr_data[col], errors='coerce').fillna(0)
     correlations = corr_data.corr()
-    
+
     # Analyze patterns for recommendations
     price_impact = correlations.loc['price', 'owners'] if 'price' in correlations.index else -0.3
     platform_impacts = {}
     for platform in ['windows', 'mac', 'linux']:
         if platform in correlations.index:
             platform_impacts[platform] = correlations.loc[platform, 'owners']
-    
+
     # Store analysis results
     st.session_state.data_analysis = {
         'correlations': correlations,
@@ -294,18 +359,24 @@ def train_models(df, _loader):
         'platform_impacts': platform_impacts,
         'feature_importance_owners': feature_importance_owners,
         'feature_importance_reviews': feature_importance_reviews,
-        'average_owners_by_price': df.groupby(pd.cut(df['price'], bins=[0, 10, 20, 30, 40, 50, 60]))['owners'].mean(),
-        'average_review_by_tag': {col: df[df[col] == 1]['review_ratio'].mean() for col in genre_cols if col in df.columns}
+        'average_owners_by_price': df.groupby(pd.cut(df['price'], bins=[0, 10, 20, 30, 40, 50, 60]), observed=False)['owners'].mean(),
+        'average_review_by_tag': {col: df[df[col] == 1]['review_ratio'].mean() for col in tag_cols if col in df.columns and df[col].sum() > 0}
     }
-    
+
+    print("  ✅ Models trained successfully!")
+    print(f"  📊 Top 3 features for Owners: {', '.join(feature_importance_owners.head(3)['feature'].tolist())}")
+    print(f"  📊 Top 3 features for Reviews: {', '.join(feature_importance_reviews.head(3)['feature'].tolist())}")
+
     return {
         'owners_model': owners_model,
         'review_model': review_model,
-        'feature_cols': X.columns.tolist(),
-        'scaler': scaler,
+        'feature_cols': X_train.columns.tolist(),
+        'scaler': None,  # Not using scaler with tree-based models
         'X_test': X_test,
-        'y_owners_test': y_owners_test,
-        'y_reviews_test': y_reviews_test
+        'y_owners_test': y_owners_test,  # Log-transformed
+        'y_owners_actual_test': y_owners_actual_test,  # Original scale
+        'y_reviews_test': y_reviews_test,
+        'uses_log_transform': True  # Flag to indicate log transform is used
     }
 
 def generate_data_driven_recommendations(prediction_results, input_features, data_analysis):
@@ -618,8 +689,14 @@ def new_game_page():
         X_pred = pd.DataFrame([input_features])[models['feature_cols']]
 
         # Make predictions
-        owners_pred = models['owners_model'].predict(X_pred)[0]
+        owners_pred_log = models['owners_model'].predict(X_pred)[0]
         review_pred = models['review_model'].predict(X_pred)[0]
+
+        # Convert from log space back to original scale
+        if models.get('uses_log_transform', False):
+            owners_pred = np.expm1(owners_pred_log)  # Inverse of log1p
+        else:
+            owners_pred = owners_pred_log
 
         # Ensure predictions are reasonable
         owners_pred = max(100, owners_pred)
@@ -1153,21 +1230,42 @@ def data_analysis_page():
         # Handle NaN values
         X_test_df = X_test_df.fillna(0)
 
-        owners_pred = models['owners_model'].predict(X_test_df)
+        owners_pred_log = models['owners_model'].predict(X_test_df)
         reviews_pred = models['review_model'].predict(X_test_df)
 
-        # Calculate basic metrics
-        y_owners_actual = models['y_owners_test']
+        # Convert predictions back from log space
+        if models.get('uses_log_transform', False):
+            owners_pred = np.expm1(owners_pred_log)  # Inverse of log1p
+            y_owners_actual = models['y_owners_actual_test']  # Use original scale for metrics
+            y_owners_log = models['y_owners_test']  # Log scale for R²
+        else:
+            owners_pred = owners_pred_log
+            y_owners_actual = models['y_owners_test']
+            y_owners_log = y_owners_actual
+
         y_reviews_actual = models['y_reviews_test']
 
-        # Owners metrics
-        r2_owners = r2_score(y_owners_actual, owners_pred)
+        # Owners metrics (calculated on original scale)
         mae_owners = mean_absolute_error(y_owners_actual, owners_pred)
         rmse_owners = np.sqrt(mean_squared_error(y_owners_actual, owners_pred))
 
+        # R² calculated on log scale for better interpretation
+        r2_owners_log = r2_score(y_owners_log, owners_pred_log)
+
         # Normalized metrics for owners
         mean_owners = np.mean(y_owners_actual)
-        mape_owners = np.mean(np.abs((y_owners_actual - owners_pred) / np.maximum(y_owners_actual, 1))) * 100
+        median_owners = np.median(y_owners_actual)
+
+        # SMAPE: Symmetric Mean Absolute Percentage Error (better for wide ranges)
+        smape_owners = np.mean(2 * np.abs(owners_pred - y_owners_actual) / (np.abs(owners_pred) + np.abs(y_owners_actual) + 1)) * 100
+
+        # Median APE (more robust to outliers than MAPE)
+        median_ape_owners = np.median(np.abs((y_owners_actual - owners_pred) / np.maximum(y_owners_actual, 1))) * 100
+
+        # Percentage within ranges (practical metrics)
+        within_20pct = np.mean(np.abs(owners_pred - y_owners_actual) / y_owners_actual < 0.20) * 100
+        within_50pct = np.mean(np.abs(owners_pred - y_owners_actual) / y_owners_actual < 0.50) * 100
+
         mae_pct_owners = (mae_owners / mean_owners) * 100
         rmse_pct_owners = (rmse_owners / mean_owners) * 100
 
@@ -1182,17 +1280,20 @@ def data_analysis_page():
         col1, col2 = st.columns(2)
 
         with col1:
-            st.write("**Owners Prediction Model (GradientBoosting)**")
-            st.metric("R² Score", f"{r2_owners:.3f}", help="Coefficient of determination (0=worst, 1=perfect)")
-            st.metric("MAPE", f"{mape_owners:.1f}%", help="Mean Absolute Percentage Error - average prediction error as %")
-            st.metric("MAE (% of mean)", f"{mae_pct_owners:.1f}%", help=f"Mean Absolute Error as % of average owners ({mean_owners:,.0f})")
-            st.metric("RMSE (% of mean)", f"{rmse_pct_owners:.1f}%", help=f"Root Mean Squared Error as % of average owners")
+            st.write("**Owners Prediction Model (GradientBoosting with Log Transform)**")
+            st.metric("R² Score (log)", f"{r2_owners_log:.3f}", help="R² on log-transformed scale (better for exponential data)")
+            st.metric("SMAPE", f"{smape_owners:.1f}%", help="Symmetric MAPE - handles wide ranges better than MAPE")
+            st.metric("Median APE", f"{median_ape_owners:.1f}%", help="Median Absolute Percentage Error - robust to outliers")
+            st.metric("Within ±20%", f"{within_20pct:.1f}%", help="Percentage of predictions within 20% of actual")
+            st.metric("Within ±50%", f"{within_50pct:.1f}%", help="Percentage of predictions within 50% of actual")
 
             # Show raw metrics in expander
-            with st.expander("📊 Raw Metrics"):
-                st.write(f"**MAE:** {mae_owners:,.0f} owners")
-                st.write(f"**RMSE:** {rmse_owners:,.0f} owners")
-                st.write(f"**Mean Actual Owners:** {mean_owners:,.0f}")
+            with st.expander("📊 Additional Metrics"):
+                st.write(f"**MAE:** {mae_owners:,.0f} owners ({mae_pct_owners:.1f}% of mean)")
+                st.write(f"**RMSE:** {rmse_owners:,.0f} owners ({rmse_pct_owners:.1f}% of mean)")
+                st.write(f"**Mean Actual:** {mean_owners:,.0f} owners")
+                st.write(f"**Median Actual:** {median_owners:,.0f} owners")
+                st.info("💡 Log transformation enabled! Predicting log(owners) handles the 10K-200M range much better.")
 
         with col2:
             st.write("**Review Ratio Model (LightGBM)**")
