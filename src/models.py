@@ -10,7 +10,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.model_selection import train_test_split
 import lightgbm as lgb
 
-from data_loader import SteamDataLoader
+from src.data_loader import SteamDataLoader
 
 
 @st.cache_data

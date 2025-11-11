@@ -9,9 +9,9 @@ import numpy as np
 import streamlit as st
 import plotly.express as px
 
-from ..models import load_steam_data, train_models
-from ..recommendations import generate_data_driven_recommendations
-from ..persistence import save_game_configuration, SAVED_GAMES_FILE
+from src.models import load_steam_data, train_models
+from src.recommendations import generate_data_driven_recommendations
+from src.persistence import save_game_configuration, SAVED_GAMES_FILE
 
 
 def new_game_page():
