@@ -11,7 +11,7 @@ from src.utils import convert_numpy_types
 
 
 # File location for saved games
-SAVED_GAMES_FILE = "saved_games.json"
+SAVED_GAMES_FILE = "data/saved_games.json"
 
 
 def migrate_old_config_ids(saved_games, configurations):
