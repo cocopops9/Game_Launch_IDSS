@@ -272,11 +272,15 @@ def train_models(df, _loader):
         'importance': review_model.feature_importances_
     }).sort_values('importance', ascending=False)
 
+    # Compute correlation matrix for all features
+    corr_matrix = df[feature_cols + ['owners', 'review_ratio']].corr()
+
     # Store comprehensive analysis
     st.session_state.data_analysis = {
         'feature_impacts': feature_impacts,  # NEW: Core improvement data
         'feature_importance_owners': feature_importance_owners,
-        'feature_importance_reviews': feature_importance_reviews
+        'feature_importance_reviews': feature_importance_reviews,
+        'correlations': corr_matrix  # Add correlation matrix
     }
 
     # ============================================================================
@@ -319,9 +323,70 @@ def train_models(df, _loader):
     print(f"     Test MAE: {test_mae_reviews:.3f}")
 
     # ============================================================================
+    # DETAILED MODEL ANALYSIS FOR TECHNICAL REPORT
+    # ============================================================================
+
+    # Residual analysis
+    train_residuals_owners = y_train_actual - train_owners_pred
+    test_residuals_owners = y_test_actual - owners_pred
+    train_residuals_reviews = y_train_rev - train_reviews_pred
+    test_residuals_reviews = y_test_rev - reviews_pred
+
+    # Prediction distributions
+    train_pred_stats_owners = {
+        'min': float(train_owners_pred.min()),
+        'max': float(train_owners_pred.max()),
+        'mean': float(train_owners_pred.mean()),
+        'median': float(np.median(train_owners_pred)),
+        'std': float(train_owners_pred.std())
+    }
+    test_pred_stats_owners = {
+        'min': float(owners_pred.min()),
+        'max': float(owners_pred.max()),
+        'mean': float(owners_pred.mean()),
+        'median': float(np.median(owners_pred)),
+        'std': float(owners_pred.std())
+    }
+
+    # Feature correlations with targets
+    feature_target_corr_owners = []
+    feature_target_corr_reviews = []
+    for feat in X_train.columns[:20]:  # Top 20 features
+        if feat in df.columns:
+            corr_own = df[[feat, 'owners']].corr().iloc[0, 1]
+            corr_rev = df[[feat, 'review_ratio']].corr().iloc[0, 1]
+            feature_target_corr_owners.append({'feature': feat, 'correlation': float(corr_own)})
+            feature_target_corr_reviews.append({'feature': feat, 'correlation': float(corr_rev)})
+
+    # Sort by absolute correlation
+    feature_target_corr_owners = sorted(feature_target_corr_owners,
+                                        key=lambda x: abs(x['correlation']), reverse=True)[:10]
+    feature_target_corr_reviews = sorted(feature_target_corr_reviews,
+                                         key=lambda x: abs(x['correlation']), reverse=True)[:10]
+
+    # Model complexity metrics
+    owners_model_complexity = {
+        'n_features_used': len(X_train.columns),
+        'n_estimators': owners_model.n_estimators,
+        'max_depth': owners_model.max_depth,
+        'min_samples_split': owners_model.min_samples_split,
+        'min_samples_leaf': owners_model.min_samples_leaf,
+        'n_features_considered_per_split': 'sqrt',
+        'total_trees': owners_model.n_estimators
+    }
+
+    review_model_complexity = {
+        'n_features_used': len(X_train.columns),
+        'n_estimators': review_model.n_estimators,
+        'max_depth': review_model.max_depth,
+        'num_leaves': review_model.num_leaves,
+        'min_samples_per_leaf': review_model.min_child_samples
+    }
+
+    # ============================================================================
     # GENERATE DETAILED TRAINING REPORT
     # ============================================================================
-    print("  📝 Generating training report...")
+    print("  📝 Generating detailed technical report...")
 
     report = {
         'metadata': {
@@ -368,7 +433,43 @@ def train_models(df, _loader):
                     'rmse': float(test_rmse_owners),
                     'smape': float(test_smape_owners)
                 },
-                'interpretation': f"Test R² of {test_r2_owners:.3f} means the model explains {test_r2_owners*100:.1f}% of variance in log(owners). SMAPE of {test_smape_owners:.1f}% indicates typical prediction error."
+                'interpretation': f"Test R² of {test_r2_owners:.3f} means the model explains {test_r2_owners*100:.1f}% of variance in log(owners). SMAPE of {test_smape_owners:.1f}% indicates typical prediction error.",
+                'model_complexity': owners_model_complexity,
+                'residual_analysis': {
+                    'train': {
+                        'mean': float(train_residuals_owners.mean()),
+                        'std': float(train_residuals_owners.std()),
+                        'min': float(train_residuals_owners.min()),
+                        'max': float(train_residuals_owners.max()),
+                        'median': float(np.median(train_residuals_owners))
+                    },
+                    'test': {
+                        'mean': float(test_residuals_owners.mean()),
+                        'std': float(test_residuals_owners.std()),
+                        'min': float(test_residuals_owners.min()),
+                        'max': float(test_residuals_owners.max()),
+                        'median': float(np.median(test_residuals_owners))
+                    }
+                },
+                'prediction_distribution': {
+                    'train': train_pred_stats_owners,
+                    'test': test_pred_stats_owners,
+                    'actual_train': {
+                        'min': float(y_train_actual.min()),
+                        'max': float(y_train_actual.max()),
+                        'mean': float(y_train_actual.mean()),
+                        'median': float(np.median(y_train_actual)),
+                        'std': float(y_train_actual.std())
+                    },
+                    'actual_test': {
+                        'min': float(y_test_actual.min()),
+                        'max': float(y_test_actual.max()),
+                        'mean': float(y_test_actual.mean()),
+                        'median': float(np.median(y_test_actual)),
+                        'std': float(y_test_actual.std())
+                    }
+                },
+                'feature_target_correlations': feature_target_corr_owners
             },
             'review_model': {
                 'type': 'LightGBM',
@@ -400,7 +501,55 @@ def train_models(df, _loader):
                     'mae': float(test_mae_reviews),
                     'rmse': float(test_rmse_reviews)
                 },
-                'interpretation': f"Test R² of {test_r2_reviews:.3f} means the model explains {test_r2_reviews*100:.1f}% of variance in review ratio. MAE of {test_mae_reviews:.3f} is the average prediction error."
+                'interpretation': f"Test R² of {test_r2_reviews:.3f} means the model explains {test_r2_reviews*100:.1f}% of variance in review ratio. MAE of {test_mae_reviews:.3f} is the average prediction error.",
+                'model_complexity': review_model_complexity,
+                'residual_analysis': {
+                    'train': {
+                        'mean': float(train_residuals_reviews.mean()),
+                        'std': float(train_residuals_reviews.std()),
+                        'min': float(train_residuals_reviews.min()),
+                        'max': float(train_residuals_reviews.max()),
+                        'median': float(np.median(train_residuals_reviews))
+                    },
+                    'test': {
+                        'mean': float(test_residuals_reviews.mean()),
+                        'std': float(test_residuals_reviews.std()),
+                        'min': float(test_residuals_reviews.min()),
+                        'max': float(test_residuals_reviews.max()),
+                        'median': float(np.median(test_residuals_reviews))
+                    }
+                },
+                'prediction_distribution': {
+                    'train': {
+                        'min': float(train_reviews_pred.min()),
+                        'max': float(train_reviews_pred.max()),
+                        'mean': float(train_reviews_pred.mean()),
+                        'median': float(np.median(train_reviews_pred)),
+                        'std': float(train_reviews_pred.std())
+                    },
+                    'test': {
+                        'min': float(reviews_pred.min()),
+                        'max': float(reviews_pred.max()),
+                        'mean': float(reviews_pred.mean()),
+                        'median': float(np.median(reviews_pred)),
+                        'std': float(reviews_pred.std())
+                    },
+                    'actual_train': {
+                        'min': float(y_train_rev.min()),
+                        'max': float(y_train_rev.max()),
+                        'mean': float(y_train_rev.mean()),
+                        'median': float(np.median(y_train_rev)),
+                        'std': float(y_train_rev.std())
+                    },
+                    'actual_test': {
+                        'min': float(y_test_rev.min()),
+                        'max': float(y_test_rev.max()),
+                        'mean': float(y_test_rev.mean()),
+                        'median': float(np.median(y_test_rev)),
+                        'std': float(y_test_rev.std())
+                    }
+                },
+                'feature_target_correlations': feature_target_corr_reviews
             }
         },
         'feature_analysis': {
@@ -520,13 +669,63 @@ def train_models(df, _loader):
 **Interpretation:**
 {report['models']['owners_model']['interpretation']}
 
-### Top 5 Features by Importance
+### Model Complexity
+- **Features Used:** {report['models']['owners_model']['model_complexity']['n_features_used']}
+- **Total Trees:** {report['models']['owners_model']['model_complexity']['total_trees']}
+- **Max Tree Depth:** {report['models']['owners_model']['model_complexity']['max_depth']}
+- **Min Samples per Split:** {report['models']['owners_model']['model_complexity']['min_samples_split']}
+- **Min Samples per Leaf:** {report['models']['owners_model']['model_complexity']['min_samples_leaf']}
+- **Features Considered per Split:** {report['models']['owners_model']['model_complexity']['n_features_considered_per_split']}
+
+**Analysis:** This configuration creates {report['models']['owners_model']['model_complexity']['total_trees']} decision trees, each with max depth {report['models']['owners_model']['model_complexity']['max_depth']}. The model considers √n features at each split, providing good balance between model diversity and computational efficiency.
+
+### Residual Analysis
+
+**Training Set Residuals:**
+- Mean: {report['models']['owners_model']['residual_analysis']['train']['mean']:,.0f} (should be ~0)
+- Std Dev: {report['models']['owners_model']['residual_analysis']['train']['std']:,.0f}
+- Range: [{report['models']['owners_model']['residual_analysis']['train']['min']:,.0f}, {report['models']['owners_model']['residual_analysis']['train']['max']:,.0f}]
+- Median: {report['models']['owners_model']['residual_analysis']['train']['median']:,.0f}
+
+**Test Set Residuals:**
+- Mean: {report['models']['owners_model']['residual_analysis']['test']['mean']:,.0f} (should be ~0)
+- Std Dev: {report['models']['owners_model']['residual_analysis']['test']['std']:,.0f}
+- Range: [{report['models']['owners_model']['residual_analysis']['test']['min']:,.0f}, {report['models']['owners_model']['residual_analysis']['test']['max']:,.0f}]
+- Median: {report['models']['owners_model']['residual_analysis']['test']['median']:,.0f}
+
+**Analysis:** Mean residuals close to 0 indicate unbiased predictions. Test residual std dev of {report['models']['owners_model']['residual_analysis']['test']['std']:,.0f} shows typical prediction error magnitude.
+
+### Prediction Distribution
+
+**Training Set:**
+- Predictions range: {report['models']['owners_model']['prediction_distribution']['train']['min']:,.0f} - {report['models']['owners_model']['prediction_distribution']['train']['max']:,.0f}
+- Mean predicted: {report['models']['owners_model']['prediction_distribution']['train']['mean']:,.0f} (actual: {report['models']['owners_model']['prediction_distribution']['actual_train']['mean']:,.0f})
+- Std dev predicted: {report['models']['owners_model']['prediction_distribution']['train']['std']:,.0f} (actual: {report['models']['owners_model']['prediction_distribution']['actual_train']['std']:,.0f})
+
+**Test Set:**
+- Predictions range: {report['models']['owners_model']['prediction_distribution']['test']['min']:,.0f} - {report['models']['owners_model']['prediction_distribution']['test']['max']:,.0f}
+- Mean predicted: {report['models']['owners_model']['prediction_distribution']['test']['mean']:,.0f} (actual: {report['models']['owners_model']['prediction_distribution']['actual_test']['mean']:,.0f})
+- Std dev predicted: {report['models']['owners_model']['prediction_distribution']['test']['std']:,.0f} (actual: {report['models']['owners_model']['prediction_distribution']['actual_test']['std']:,.0f})
+
+**Analysis:** Prediction distribution should match actual distribution. Significant differences indicate model bias or inability to capture full variance.
+
+### Top 10 Features by Importance (Model-Based)
 """
 
-    for feat in report['feature_analysis']['top_10_features_owners'][:5]:
-        markdown_report += f"- **{feat['feature']}**: {feat['importance']:.4f}\n"
+    for i, feat in enumerate(report['feature_analysis']['top_10_features_owners'][:10], 1):
+        markdown_report += f"{i}. **{feat['feature']}**: {feat['importance']:.4f}\n"
+
+    markdown_report += """
+
+### Top 10 Features by Target Correlation
+"""
+
+    for i, feat in enumerate(report['models']['owners_model']['feature_target_correlations'][:10], 1):
+        markdown_report += f"{i}. **{feat['feature']}**: {feat['correlation']:.3f}\n"
 
     markdown_report += f"""
+
+**Analysis:** Feature importance (model-based) shows which features the model uses most for predictions. Target correlation shows linear relationship with outcome. Both metrics are important for understanding model behavior.
 
 ---
 
@@ -559,13 +758,62 @@ def train_models(df, _loader):
 **Interpretation:**
 {report['models']['review_model']['interpretation']}
 
-### Top 5 Features by Importance
+### Model Complexity
+- **Features Used:** {report['models']['review_model']['model_complexity']['n_features_used']}
+- **Total Trees:** {report['models']['review_model']['model_complexity']['n_estimators']}
+- **Max Tree Depth:** {report['models']['review_model']['model_complexity']['max_depth']}
+- **Num Leaves per Tree:** {report['models']['review_model']['model_complexity']['num_leaves']}
+- **Min Samples per Leaf:** {report['models']['review_model']['model_complexity']['min_samples_per_leaf']}
+
+**Analysis:** LightGBM uses {report['models']['review_model']['model_complexity']['n_estimators']} leaf-wise trees with up to {report['models']['review_model']['model_complexity']['num_leaves']} leaves each. Leaf-wise growth is more efficient than depth-wise growth for complex patterns.
+
+### Residual Analysis
+
+**Training Set Residuals:**
+- Mean: {report['models']['review_model']['residual_analysis']['train']['mean']:.4f} (should be ~0)
+- Std Dev: {report['models']['review_model']['residual_analysis']['train']['std']:.4f}
+- Range: [{report['models']['review_model']['residual_analysis']['train']['min']:.4f}, {report['models']['review_model']['residual_analysis']['train']['max']:.4f}]
+- Median: {report['models']['review_model']['residual_analysis']['train']['median']:.4f}
+
+**Test Set Residuals:**
+- Mean: {report['models']['review_model']['residual_analysis']['test']['mean']:.4f} (should be ~0)
+- Std Dev: {report['models']['review_model']['residual_analysis']['test']['std']:.4f}
+- Range: [{report['models']['review_model']['residual_analysis']['test']['min']:.4f}, {report['models']['review_model']['residual_analysis']['test']['max']:.4f}]
+- Median: {report['models']['review_model']['residual_analysis']['test']['median']:.4f}
+
+**Analysis:** Mean residuals close to 0 indicate unbiased predictions. Review ratio residuals are on 0-1 scale.
+
+### Prediction Distribution
+
+**Training Set:**
+- Predictions range: {report['models']['review_model']['prediction_distribution']['train']['min']:.3f} - {report['models']['review_model']['prediction_distribution']['train']['max']:.3f}
+- Mean predicted: {report['models']['review_model']['prediction_distribution']['train']['mean']:.3f} (actual: {report['models']['review_model']['prediction_distribution']['actual_train']['mean']:.3f})
+- Std dev predicted: {report['models']['review_model']['prediction_distribution']['train']['std']:.3f} (actual: {report['models']['review_model']['prediction_distribution']['actual_train']['std']:.3f})
+
+**Test Set:**
+- Predictions range: {report['models']['review_model']['prediction_distribution']['test']['min']:.3f} - {report['models']['review_model']['prediction_distribution']['test']['max']:.3f}
+- Mean predicted: {report['models']['review_model']['prediction_distribution']['test']['mean']:.3f} (actual: {report['models']['review_model']['prediction_distribution']['actual_test']['mean']:.3f})
+- Std dev predicted: {report['models']['review_model']['prediction_distribution']['test']['std']:.3f} (actual: {report['models']['review_model']['prediction_distribution']['actual_test']['std']:.3f})
+
+**Analysis:** Prediction distribution alignment with actual values indicates model's ability to capture the full range of outcomes.
+
+### Top 10 Features by Importance (Model-Based)
 """
 
-    for feat in report['feature_analysis']['top_10_features_reviews'][:5]:
-        markdown_report += f"- **{feat['feature']}**: {feat['importance']:.4f}\n"
+    for i, feat in enumerate(report['feature_analysis']['top_10_features_reviews'][:10], 1):
+        markdown_report += f"{i}. **{feat['feature']}**: {feat['importance']:.4f}\n"
 
     markdown_report += """
+
+### Top 10 Features by Target Correlation
+"""
+
+    for i, feat in enumerate(report['models']['review_model']['feature_target_correlations'][:10], 1):
+        markdown_report += f"{i}. **{feat['feature']}**: {feat['correlation']:.3f}\n"
+
+    markdown_report += f"""
+
+**Analysis:** Comparing model-based importance with direct correlation helps identify non-linear relationships that the model captures.
 
 ---
 
