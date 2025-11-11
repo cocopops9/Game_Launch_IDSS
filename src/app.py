@@ -6,8 +6,8 @@ Uses actual Steam data and provides data-driven recommendations
 import streamlit as st
 
 # Import page modules
-from src.pages import new_game_page, my_games_page, data_analysis_page
-from src.persistence import initialize_persistence
+from pages import new_game_page, my_games_page, data_analysis_page
+from persistence import initialize_persistence
 
 
 # Set page configuration
