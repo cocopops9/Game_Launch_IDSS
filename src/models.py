@@ -3,11 +3,14 @@ Machine learning models for game success prediction and improvement analysis
 """
 
 import os
+import json
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import streamlit as st
 from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 import lightgbm as lgb
 
 from src.data_loader import SteamDataLoader
@@ -224,21 +227,38 @@ def train_models(df, _loader):
     X_train.columns = X_train.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
     X_test.columns = X_test.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
 
-    # Train models
+    # Train models with cross-validation
     print("  🤖 Training models for relative scoring...")
+
+    # Owners model with cross-validation
     owners_model = GradientBoostingRegressor(
         n_estimators=150, learning_rate=0.08, max_depth=5,
         min_samples_split=15, min_samples_leaf=8,
         random_state=42, subsample=0.8, max_features='sqrt'
     )
+
+    print("  📊 Running 5-fold cross-validation for Owners model...")
+    cv_scores_owners = cross_val_score(owners_model, X_train, y_train_log, cv=5,
+                                       scoring='r2', n_jobs=-1)
+    print(f"     CV R² scores: {cv_scores_owners}")
+    print(f"     CV R² mean: {cv_scores_owners.mean():.3f} (+/- {cv_scores_owners.std() * 2:.3f})")
+
     owners_model.fit(X_train, y_train_log)
 
+    # Review model with cross-validation
     review_model = lgb.LGBMRegressor(
         n_estimators=150, learning_rate=0.05, max_depth=6,
         num_leaves=31, min_child_samples=15, random_state=42,
         verbose=-1, feature_fraction=0.8, bagging_fraction=0.8,
         bagging_freq=5, reg_alpha=0.15, reg_lambda=0.15
     )
+
+    print("  📊 Running 5-fold cross-validation for Review model...")
+    cv_scores_reviews = cross_val_score(review_model, X_train, y_train_rev, cv=5,
+                                        scoring='r2', n_jobs=-1)
+    print(f"     CV R² scores: {cv_scores_reviews}")
+    print(f"     CV R² mean: {cv_scores_reviews.mean():.3f} (+/- {cv_scores_reviews.std() * 2:.3f})")
+
     review_model.fit(X_train, y_train_rev)
 
     # Feature importance
@@ -259,6 +279,367 @@ def train_models(df, _loader):
         'feature_importance_reviews': feature_importance_reviews
     }
 
+    # ============================================================================
+    # EVALUATE ON TEST SET
+    # ============================================================================
+    print("  📈 Evaluating models on test set...")
+
+    # Predict on test set
+    owners_pred_log = owners_model.predict(X_test)
+    owners_pred = np.expm1(owners_pred_log)  # Convert from log scale
+    reviews_pred = review_model.predict(X_test)
+
+    # Calculate test metrics for owners model
+    test_r2_owners = r2_score(y_test_log, owners_pred_log)
+    test_mae_owners = mean_absolute_error(y_test_actual, owners_pred)
+    test_rmse_owners = np.sqrt(mean_squared_error(y_test_actual, owners_pred))
+    test_smape_owners = np.mean(2 * np.abs(owners_pred - y_test_actual) /
+                                 (np.abs(owners_pred) + np.abs(y_test_actual) + 1)) * 100
+
+    # Calculate test metrics for review model
+    test_r2_reviews = r2_score(y_test_rev, reviews_pred)
+    test_mae_reviews = mean_absolute_error(y_test_rev, reviews_pred)
+    test_rmse_reviews = np.sqrt(mean_squared_error(y_test_rev, reviews_pred))
+
+    # Calculate training metrics for comparison
+    train_owners_pred_log = owners_model.predict(X_train)
+    train_owners_pred = np.expm1(train_owners_pred_log)
+    train_reviews_pred = review_model.predict(X_train)
+
+    train_r2_owners = r2_score(y_train_log, train_owners_pred_log)
+    train_mae_owners = mean_absolute_error(y_train_actual, train_owners_pred)
+    train_r2_reviews = r2_score(y_train_rev, train_reviews_pred)
+    train_mae_reviews = mean_absolute_error(y_train_rev, train_reviews_pred)
+
+    print(f"  📊 Owners Model Performance:")
+    print(f"     Train R²: {train_r2_owners:.3f} | Test R²: {test_r2_owners:.3f}")
+    print(f"     Test MAE: {test_mae_owners:,.0f} owners | Test SMAPE: {test_smape_owners:.1f}%")
+    print(f"  📊 Review Model Performance:")
+    print(f"     Train R²: {train_r2_reviews:.3f} | Test R²: {test_r2_reviews:.3f}")
+    print(f"     Test MAE: {test_mae_reviews:.3f}")
+
+    # ============================================================================
+    # GENERATE DETAILED TRAINING REPORT
+    # ============================================================================
+    print("  📝 Generating training report...")
+
+    report = {
+        'metadata': {
+            'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'dataset_size': len(df),
+            'train_size': len(X_train),
+            'test_size': len(X_test),
+            'num_features': len(feature_cols),
+            'target_variables': ['owners (log-transformed)', 'review_ratio']
+        },
+        'data_overview': {
+            'owners_range': f"{y_owners.min():,.0f} - {y_owners.max():,.0f}",
+            'owners_median': f"{y_owners.median():,.0f}",
+            'review_ratio_range': f"{y_reviews.min():.3f} - {y_reviews.max():.3f}",
+            'review_ratio_mean': f"{y_reviews.mean():.3f}"
+        },
+        'models': {
+            'owners_model': {
+                'type': 'GradientBoostingRegressor',
+                'purpose': 'Predict game ownership (user reach)',
+                'architecture': {
+                    'n_estimators': 150,
+                    'learning_rate': 0.08,
+                    'max_depth': 5,
+                    'min_samples_split': 15,
+                    'min_samples_leaf': 8,
+                    'subsample': 0.8,
+                    'max_features': 'sqrt'
+                },
+                'target_transformation': 'log1p (handles 10K-200M range)',
+                'cross_validation': {
+                    'folds': 5,
+                    'cv_r2_mean': float(cv_scores_owners.mean()),
+                    'cv_r2_std': float(cv_scores_owners.std()),
+                    'cv_r2_scores': cv_scores_owners.tolist()
+                },
+                'train_performance': {
+                    'r2': float(train_r2_owners),
+                    'mae': float(train_mae_owners)
+                },
+                'test_performance': {
+                    'r2': float(test_r2_owners),
+                    'mae': float(test_mae_owners),
+                    'rmse': float(test_rmse_owners),
+                    'smape': float(test_smape_owners)
+                },
+                'interpretation': f"Test R² of {test_r2_owners:.3f} means the model explains {test_r2_owners*100:.1f}% of variance in log(owners). SMAPE of {test_smape_owners:.1f}% indicates typical prediction error."
+            },
+            'review_model': {
+                'type': 'LightGBM',
+                'purpose': 'Predict review quality (user satisfaction)',
+                'architecture': {
+                    'n_estimators': 150,
+                    'learning_rate': 0.05,
+                    'max_depth': 6,
+                    'num_leaves': 31,
+                    'min_child_samples': 15,
+                    'feature_fraction': 0.8,
+                    'bagging_fraction': 0.8,
+                    'bagging_freq': 5,
+                    'reg_alpha': 0.15,
+                    'reg_lambda': 0.15
+                },
+                'cross_validation': {
+                    'folds': 5,
+                    'cv_r2_mean': float(cv_scores_reviews.mean()),
+                    'cv_r2_std': float(cv_scores_reviews.std()),
+                    'cv_r2_scores': cv_scores_reviews.tolist()
+                },
+                'train_performance': {
+                    'r2': float(train_r2_reviews),
+                    'mae': float(train_mae_reviews)
+                },
+                'test_performance': {
+                    'r2': float(test_r2_reviews),
+                    'mae': float(test_mae_reviews),
+                    'rmse': float(test_rmse_reviews)
+                },
+                'interpretation': f"Test R² of {test_r2_reviews:.3f} means the model explains {test_r2_reviews*100:.1f}% of variance in review ratio. MAE of {test_mae_reviews:.3f} is the average prediction error."
+            }
+        },
+        'feature_analysis': {
+            'top_10_features_owners': feature_importance_owners.head(10).to_dict('records'),
+            'top_10_features_reviews': feature_importance_reviews.head(10).to_dict('records'),
+            'top_5_positive_impacts_owners': [
+                {
+                    'feature': feat,
+                    'improvement_pct': impact.get('owners_improvement_pct', 0),
+                    'type': impact['type']
+                }
+                for feat, impact in sorted(feature_impacts.items(),
+                                         key=lambda x: x[1].get('owners_improvement_pct', 0),
+                                         reverse=True)[:5]
+            ],
+            'top_5_positive_impacts_reviews': [
+                {
+                    'feature': feat,
+                    'improvement_pct': impact.get('reviews_improvement_pct', 0),
+                    'type': impact['type']
+                }
+                for feat, impact in sorted(feature_impacts.items(),
+                                         key=lambda x: x[1].get('reviews_improvement_pct', 0),
+                                         reverse=True)[:5]
+            ]
+        },
+        'model_insights': {
+            'what_models_learned': [
+                "Owners model learned to predict game reach using platform support, genres, pricing, and game features",
+                "Review model learned to predict user satisfaction based on game quality indicators and feature combinations",
+                f"Both models use {len(feature_cols)} features from actual Steam data to make predictions"
+            ],
+            'why_this_approach': [
+                "Log transformation for owners handles the wide 10K-200M range and makes predictions more stable",
+                "Gradient Boosting for owners provides better handling of non-linear relationships",
+                "LightGBM for reviews is faster and handles sparse features (tags) efficiently",
+                "Cross-validation ensures models generalize well to unseen games",
+                "80/20 train/test split validates real-world performance"
+            ],
+            'model_behavior': [
+                f"Owners model: CV R² = {cv_scores_owners.mean():.3f}, Test R² = {test_r2_owners:.3f} (overfitting check: {'minimal' if abs(cv_scores_owners.mean() - test_r2_owners) < 0.05 else 'present'})",
+                f"Review model: CV R² = {cv_scores_reviews.mean():.3f}, Test R² = {test_r2_reviews:.3f} (overfitting check: {'minimal' if abs(cv_scores_reviews.mean() - test_r2_reviews) < 0.05 else 'present'})",
+                "Models focus on IMPROVEMENT ANALYSIS rather than exact prediction accuracy",
+                "Feature impact analysis shows what changes improve outcomes, not just correlation"
+            ],
+            'recommendations_for_improvement': []
+        }
+    }
+
+    # Add recommendations based on model performance
+    if test_r2_owners < 0.3:
+        report['model_insights']['recommendations_for_improvement'].append(
+            "Owners model has low R². Consider: (1) adding more features, (2) feature engineering, (3) collecting more data"
+        )
+    if test_r2_reviews < 0.3:
+        report['model_insights']['recommendations_for_improvement'].append(
+            "Review model has low R². Reviews may be inherently unpredictable from available features."
+        )
+    if abs(train_r2_owners - test_r2_owners) > 0.1:
+        report['model_insights']['recommendations_for_improvement'].append(
+            "Owners model shows overfitting. Consider: (1) increasing regularization, (2) reducing model complexity"
+        )
+    if abs(train_r2_reviews - test_r2_reviews) > 0.1:
+        report['model_insights']['recommendations_for_improvement'].append(
+            "Review model shows overfitting. Consider: (1) increasing reg_alpha/reg_lambda, (2) reducing max_depth"
+        )
+
+    # Save report to data folder
+    os.makedirs('data', exist_ok=True)
+    report_path = 'data/training_report.json'
+    with open(report_path, 'w') as f:
+        json.dump(report, f, indent=2)
+
+    # Also create a markdown version for readability
+    markdown_report = f"""# Game Launch IDSS - Training Report
+
+**Generated:** {report['metadata']['timestamp']}
+
+## Dataset Overview
+- **Total Games:** {report['metadata']['dataset_size']:,}
+- **Training Set:** {report['metadata']['train_size']:,} games (80%)
+- **Test Set:** {report['metadata']['test_size']:,} games (20%)
+- **Features Used:** {report['metadata']['num_features']}
+
+### Data Ranges
+- **Owners:** {report['data_overview']['owners_range']} (median: {report['data_overview']['owners_median']})
+- **Review Ratio:** {report['data_overview']['review_ratio_range']} (mean: {report['data_overview']['review_ratio_mean']})
+
+---
+
+## Model 1: Owners Prediction (GradientBoostingRegressor)
+
+### Purpose
+{report['models']['owners_model']['purpose']}
+
+### Architecture
+- **Estimators:** {report['models']['owners_model']['architecture']['n_estimators']}
+- **Learning Rate:** {report['models']['owners_model']['architecture']['learning_rate']}
+- **Max Depth:** {report['models']['owners_model']['architecture']['max_depth']}
+- **Regularization:** subsample={report['models']['owners_model']['architecture']['subsample']}, min_samples_split={report['models']['owners_model']['architecture']['min_samples_split']}
+
+### Performance
+
+**Cross-Validation (5-fold):**
+- Mean R²: {report['models']['owners_model']['cross_validation']['cv_r2_mean']:.3f} ± {report['models']['owners_model']['cross_validation']['cv_r2_std']:.3f}
+
+**Training Set:**
+- R²: {report['models']['owners_model']['train_performance']['r2']:.3f}
+- MAE: {report['models']['owners_model']['train_performance']['mae']:,.0f} owners
+
+**Test Set (Unseen Data):**
+- R²: {report['models']['owners_model']['test_performance']['r2']:.3f}
+- MAE: {report['models']['owners_model']['test_performance']['mae']:,.0f} owners
+- RMSE: {report['models']['owners_model']['test_performance']['rmse']:,.0f} owners
+- SMAPE: {report['models']['owners_model']['test_performance']['smape']:.1f}%
+
+**Interpretation:**
+{report['models']['owners_model']['interpretation']}
+
+### Top 5 Features by Importance
+"""
+
+    for feat in report['feature_analysis']['top_10_features_owners'][:5]:
+        markdown_report += f"- **{feat['feature']}**: {feat['importance']:.4f}\n"
+
+    markdown_report += f"""
+
+---
+
+## Model 2: Review Ratio Prediction (LightGBM)
+
+### Purpose
+{report['models']['review_model']['purpose']}
+
+### Architecture
+- **Estimators:** {report['models']['review_model']['architecture']['n_estimators']}
+- **Learning Rate:** {report['models']['review_model']['architecture']['learning_rate']}
+- **Max Depth:** {report['models']['review_model']['architecture']['max_depth']}
+- **Num Leaves:** {report['models']['review_model']['architecture']['num_leaves']}
+- **Regularization:** L1={report['models']['review_model']['architecture']['reg_alpha']}, L2={report['models']['review_model']['architecture']['reg_lambda']}
+
+### Performance
+
+**Cross-Validation (5-fold):**
+- Mean R²: {report['models']['review_model']['cross_validation']['cv_r2_mean']:.3f} ± {report['models']['review_model']['cross_validation']['cv_r2_std']:.3f}
+
+**Training Set:**
+- R²: {report['models']['review_model']['train_performance']['r2']:.3f}
+- MAE: {report['models']['review_model']['train_performance']['mae']:.3f}
+
+**Test Set (Unseen Data):**
+- R²: {report['models']['review_model']['test_performance']['r2']:.3f}
+- MAE: {report['models']['review_model']['test_performance']['mae']:.3f}
+- RMSE: {report['models']['review_model']['test_performance']['rmse']:.3f}
+
+**Interpretation:**
+{report['models']['review_model']['interpretation']}
+
+### Top 5 Features by Importance
+"""
+
+    for feat in report['feature_analysis']['top_10_features_reviews'][:5]:
+        markdown_report += f"- **{feat['feature']}**: {feat['importance']:.4f}\n"
+
+    markdown_report += """
+
+---
+
+## Feature Impact Analysis
+
+### Top 5 Features That Improve Owners
+"""
+
+    for item in report['feature_analysis']['top_5_positive_impacts_owners']:
+        markdown_report += f"- **{item['feature']}**: +{item['improvement_pct']:.1f}% improvement\n"
+
+    markdown_report += """
+
+### Top 5 Features That Improve Review Ratio
+"""
+
+    for item in report['feature_analysis']['top_5_positive_impacts_reviews']:
+        markdown_report += f"- **{item['feature']}**: +{item['improvement_pct']:.1f}% improvement\n"
+
+    markdown_report += """
+
+---
+
+## Model Insights
+
+### What the Models Learned
+"""
+
+    for insight in report['model_insights']['what_models_learned']:
+        markdown_report += f"- {insight}\n"
+
+    markdown_report += """
+
+### Why This Approach
+"""
+
+    for reason in report['model_insights']['why_this_approach']:
+        markdown_report += f"- {reason}\n"
+
+    markdown_report += """
+
+### Model Behavior
+"""
+
+    for behavior in report['model_insights']['model_behavior']:
+        markdown_report += f"- {behavior}\n"
+
+    if report['model_insights']['recommendations_for_improvement']:
+        markdown_report += """
+
+### Recommendations for Improvement
+"""
+        for rec in report['model_insights']['recommendations_for_improvement']:
+            markdown_report += f"- ⚠️ {rec}\n"
+
+    markdown_report += """
+
+---
+
+## Conclusion
+
+These models analyze actual Steam data to provide:
+1. **Predictive insights** - estimate potential owners and review quality
+2. **Improvement analysis** - show what features improve outcomes
+3. **Data-driven recommendations** - suggest optimal game configurations
+
+The models prioritize **understanding what improves game success** over perfect prediction accuracy.
+"""
+
+    markdown_path = 'data/training_report.md'
+    with open(markdown_path, 'w') as f:
+        f.write(markdown_report)
+
+    print(f"  ✅ Training report saved to {report_path} and {markdown_path}")
     print("  ✅ Model training complete!")
     print(f"  💡 TOP IMPROVEMENTS FOR OWNERS:")
     # Show top 3 features with biggest positive impact
