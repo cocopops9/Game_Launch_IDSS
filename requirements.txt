@@ -13,6 +13,7 @@ matplotlib==3.9.3
 # Machine Learning
 scikit-learn==1.5.2
 lightgbm==4.5.0
+xgboost==2.1.1
 
 # Statistical modeling (required for plotly trendlines)
 statsmodels>=0.14.2
