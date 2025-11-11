@@ -111,7 +111,13 @@ def new_game_page():
 
         # Make predictions
         owners_pred_log = models['owners_model'].predict(X_pred)[0]
-        review_pred = models['review_model'].predict(X_pred)[0]
+
+        # Review model may use feature selection
+        if 'selector' in models and models['selector'] is not None:
+            X_pred_selected = models['selector'].transform(X_pred)
+            review_pred = models['review_model'].predict(X_pred_selected)[0]
+        else:
+            review_pred = models['review_model'].predict(X_pred)[0]
 
         # Convert from log space back to original scale
         if models.get('uses_log_transform', False):

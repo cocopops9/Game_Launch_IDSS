@@ -8,9 +8,10 @@ import json
 from datetime import datetime
 import pandas as pd
 import numpy as np
+import streamlit as st
 from sklearn.ensemble import (
-    GradientBoostingRegressor, 
-    RandomForestRegressor, 
+    GradientBoostingRegressor,
+    RandomForestRegressor,
     ExtraTreesRegressor,
     HistGradientBoostingRegressor
 )
@@ -22,6 +23,73 @@ import lightgbm as lgb
 from xgboost import XGBRegressor
 import warnings
 warnings.filterwarnings('ignore')
+
+from src.data_loader import SteamDataLoader
+
+
+@st.cache_data
+def load_steam_data():
+    """Load actual Steam data from CSV files"""
+    steam_path = "steam.csv" if os.path.exists("steam.csv") else "/mnt/user-data/uploads/steam.csv"
+    tags_path = "steamspy_tag_data.csv" if os.path.exists("steamspy_tag_data.csv") else "/mnt/user-data/uploads/steamspy_tag_data.csv"
+
+    if not os.path.exists(steam_path):
+        st.error("❌ steam.csv not found! Please upload your Steam dataset.")
+        st.stop()
+
+    loader = SteamDataLoader(
+        steam_csv_path=steam_path,
+        tags_csv_path=tags_path if os.path.exists(tags_path) else None
+    )
+
+    df = loader.load_steam_data()
+    st.success(f"✅ Loaded {len(df)} games from Steam dataset")
+    return df, loader
+
+
+@st.cache_resource
+def train_models(df, _loader):
+    """
+    Wrapper function that uses the improved training pipeline
+    Compatible with existing app structure
+    """
+    print("\n" + "="*60)
+    print("🎮 TRAINING IMPROVED MODELS")
+    print("="*60)
+
+    # Enhanced feature engineering
+    df, feature_cols = enhanced_feature_engineering(df)
+
+    # Train improved models
+    results = train_improved_models(df, feature_cols)
+
+    # Store in session state for compatibility
+    st.session_state.data_analysis = {
+        'feature_importance_owners': results['owner_importance'],
+        'feature_importance_reviews': results['review_importance'],
+    }
+
+    # Compute correlation matrix
+    try:
+        corr_matrix = df[feature_cols + ['owners', 'review_ratio']].corr()
+        st.session_state.data_analysis['correlations'] = corr_matrix
+    except:
+        pass
+
+    # Return in expected format
+    return {
+        'owners_model': results['owners_model'],
+        'review_model': results['review_model'],
+        'feature_cols': results['feature_cols'],
+        'X_test': results['X_test'],
+        'y_owners_test': results['y_test_log'],
+        'y_owners_actual_test': results['y_test_actual'],
+        'y_reviews_test': results['y_test_rev'],
+        'uses_log_transform': True,
+        'selector': results.get('selector'),
+        'test_metrics': results.get('test_metrics', {})
+    }
+
 
 
 def enhanced_feature_engineering(df):

@@ -448,7 +448,13 @@ def data_analysis_page():
         X_test_df = X_test_df.fillna(0)
 
         owners_pred_log = models['owners_model'].predict(X_test_df)
-        reviews_pred = models['review_model'].predict(X_test_df)
+
+        # Review model may use feature selection
+        if 'selector' in models and models['selector'] is not None:
+            X_test_selected = models['selector'].transform(X_test_df)
+            reviews_pred = models['review_model'].predict(X_test_selected)
+        else:
+            reviews_pred = models['review_model'].predict(X_test_df)
 
         # Convert predictions back from log space
         if models.get('uses_log_transform', False):
