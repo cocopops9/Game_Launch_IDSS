@@ -1,0 +1,451 @@
+{
+  "metadata": {
+    "timestamp": "2025-11-11 18:29:29",
+    "dataset_size": 27075,
+    "train_size": 21660,
+    "test_size": 5415,
+    "num_features": 43,
+    "target_variables": [
+      "owners (log-transformed)",
+      "review_ratio"
+    ]
+  },
+  "data_overview": {
+    "owners_range": "10,000 - 150,000,000",
+    "owners_median": "10,000",
+    "review_ratio_range": "0.000 - 1.000",
+    "review_ratio_mean": "0.714"
+  },
+  "models": {
+    "owners_model": {
+      "type": "GradientBoostingRegressor",
+      "purpose": "Predict game ownership (user reach)",
+      "architecture": {
+        "n_estimators": 150,
+        "learning_rate": 0.08,
+        "max_depth": 5,
+        "min_samples_split": 15,
+        "min_samples_leaf": 8,
+        "subsample": 0.8,
+        "max_features": "sqrt"
+      },
+      "target_transformation": "log1p (handles 10K-200M range)",
+      "cross_validation": {
+        "folds": 5,
+        "cv_r2_mean": 0.8820245308812236,
+        "cv_r2_std": 0.0059403251398724944,
+        "cv_r2_scores": [
+          0.87742466871097,
+          0.8928480834351588,
+          0.8792401718225064,
+          0.876807570792004,
+          0.8838021596454791
+        ]
+      },
+      "train_performance": {
+        "r2": 0.9000714286577632,
+        "mae": 47753.42530107984
+      },
+      "test_performance": {
+        "r2": 0.8881219050997973,
+        "mae": 62073.8006171661,
+        "rmse": 1039135.1468334473,
+        "smape": 24.468517571770967
+      },
+      "interpretation": "Test R\u00b2 of 0.888 means the model explains 88.8% of variance in log(owners). SMAPE of 24.5% indicates typical prediction error.",
+      "model_complexity": {
+        "n_features_used": 47,
+        "n_estimators": 150,
+        "max_depth": 5,
+        "min_samples_split": 15,
+        "min_samples_leaf": 8,
+        "n_features_considered_per_split": "sqrt",
+        "total_trees": 150
+      },
+      "residual_analysis": {
+        "train": {
+          "mean": 20846.927529419205,
+          "std": 890859.4221963262,
+          "min": -21316405.03013009,
+          "max": 119701962.40307266,
+          "median": -105.76208451733874
+        },
+        "test": {
+          "mean": 33149.087231057594,
+          "std": 1038702.1876635036,
+          "min": -4816900.0197443925,
+          "max": 71112855.04918025,
+          "median": -90.35695435013258
+        }
+      },
+      "prediction_distribution": {
+        "train": {
+          "min": 8174.122499876375,
+          "max": 56316405.03013009,
+          "mean": 113354.36517602863,
+          "median": 10850.611668136731,
+          "std": 807484.9971498379
+        },
+        "test": {
+          "min": 8323.909665451398,
+          "max": 19816900.019744392,
+          "mean": 100498.18885389162,
+          "median": 10963.1328425142,
+          "std": 510323.94255435205
+        },
+        "actual_train": {
+          "min": 10000.0,
+          "max": 150000000.0,
+          "mean": 134201.29270544782,
+          "median": 10000.0,
+          "std": 1346957.593567789
+        },
+        "actual_test": {
+          "min": 10000.0,
+          "max": 75000000.0,
+          "mean": 133647.2760849492,
+          "median": 10000.0,
+          "std": 1249885.9730996503
+        }
+      },
+      "feature_target_correlations": [
+        {
+          "feature": "total_ratings",
+          "correlation": 0.7358916999252956
+        },
+        {
+          "feature": "engagement_score",
+          "correlation": 0.25005146828607877
+        },
+        {
+          "feature": "average_playtime",
+          "correlation": 0.17415654321609958
+        },
+        {
+          "feature": "game_age_days",
+          "correlation": 0.14936255042289553
+        },
+        {
+          "feature": "release_year",
+          "correlation": -0.1423384941817342
+        },
+        {
+          "feature": "is_free",
+          "correlation": 0.07500447696930249
+        },
+        {
+          "feature": "required_age",
+          "correlation": 0.07443839269285477
+        },
+        {
+          "feature": "linux",
+          "correlation": 0.05092329219307469
+        },
+        {
+          "feature": "mac",
+          "correlation": 0.04159171401501226
+        },
+        {
+          "feature": "tag_Adventure",
+          "correlation": -0.040266576467970154
+        }
+      ]
+    },
+    "review_model": {
+      "type": "LightGBM",
+      "purpose": "Predict review quality (user satisfaction)",
+      "architecture": {
+        "n_estimators": 150,
+        "learning_rate": 0.05,
+        "max_depth": 6,
+        "num_leaves": 31,
+        "min_child_samples": 15,
+        "feature_fraction": 0.8,
+        "bagging_fraction": 0.8,
+        "bagging_freq": 5,
+        "reg_alpha": 0.15,
+        "reg_lambda": 0.15
+      },
+      "cross_validation": {
+        "folds": 5,
+        "cv_r2_mean": 0.16750962371018116,
+        "cv_r2_std": 0.005656732623302327,
+        "cv_r2_scores": [
+          0.16071716582558782,
+          0.16425215201356724,
+          0.16846800183524768,
+          0.17757798358514398,
+          0.1665328152913591
+        ]
+      },
+      "train_performance": {
+        "r2": 0.2488528887812066,
+        "mae": 0.155138953555913
+      },
+      "test_performance": {
+        "r2": 0.15868099750610332,
+        "mae": 0.1632017470465647,
+        "rmse": 0.21388827345704928
+      },
+      "interpretation": "Test R\u00b2 of 0.159 means the model explains 15.9% of variance in review ratio. MAE of 0.163 is the average prediction error.",
+      "model_complexity": {
+        "n_features_used": 47,
+        "n_estimators": 150,
+        "max_depth": 6,
+        "num_leaves": 31,
+        "min_samples_per_leaf": 15
+      },
+      "residual_analysis": {
+        "train": {
+          "mean": 0.00015496658445903955,
+          "std": 0.20253941218835583,
+          "min": -0.842671486142948,
+          "max": 0.7463563802683099,
+          "median": 0.026891011551569755
+        },
+        "test": {
+          "mean": 0.0010592289994645994,
+          "std": 0.2139054027589366,
+          "min": -0.8599305113456942,
+          "max": 0.7283084303574017,
+          "median": 0.031337432076577465
+        }
+      },
+      "prediction_distribution": {
+        "train": {
+          "min": 0.19892681422176084,
+          "max": 0.9594783825497328,
+          "mean": 0.7139114283038434,
+          "median": 0.7209882697249743,
+          "std": 0.0923371369848898
+        },
+        "test": {
+          "min": 0.27169156964259833,
+          "max": 0.9583229332585433,
+          "mean": 0.715064807689302,
+          "median": 0.7211003102301066,
+          "std": 0.09036626518537058
+        },
+        "actual_train": {
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.7140663948883024,
+          "median": 0.7587823940765117,
+          "std": 0.23369378985963063
+        },
+        "actual_test": {
+          "min": 0.0,
+          "max": 1.0,
+          "mean": 0.7161240366887665,
+          "median": 0.7666666666666667,
+          "std": 0.23320976452208592
+        }
+      },
+      "feature_target_correlations": [
+        {
+          "feature": "has_achievements",
+          "correlation": 0.1723290214768635
+        },
+        {
+          "feature": "engagement_score",
+          "correlation": 0.1640927038168255
+        },
+        {
+          "feature": "mac",
+          "correlation": 0.12212319615414167
+        },
+        {
+          "feature": "linux",
+          "correlation": 0.11633794843010965
+        },
+        {
+          "feature": "tag_Simulation",
+          "correlation": -0.10411242505779995
+        },
+        {
+          "feature": "price",
+          "correlation": 0.07645489290365261
+        },
+        {
+          "feature": "tag_Strategy",
+          "correlation": -0.05007293243411108
+        },
+        {
+          "feature": "tag_Action",
+          "correlation": -0.035891597990554525
+        },
+        {
+          "feature": "game_age_days",
+          "correlation": 0.02710464881155194
+        },
+        {
+          "feature": "total_ratings",
+          "correlation": 0.02575002789670552
+        }
+      ]
+    }
+  },
+  "feature_analysis": {
+    "top_10_features_owners": [
+      {
+        "feature": "total_ratings",
+        "importance": 0.3106093286066157
+      },
+      {
+        "feature": "median_playtime",
+        "importance": 0.26146382868025975
+      },
+      {
+        "feature": "engagement_score",
+        "importance": 0.15965433706685245
+      },
+      {
+        "feature": "game_age_days",
+        "importance": 0.06591087668491925
+      },
+      {
+        "feature": "average_playtime",
+        "importance": 0.06144099635240237
+      },
+      {
+        "feature": "release_year",
+        "importance": 0.03358579325287292
+      },
+      {
+        "feature": "price",
+        "importance": 0.013901476528295919
+      },
+      {
+        "feature": "tag_Free_To_Play",
+        "importance": 0.01363889560916172
+      },
+      {
+        "feature": "tag_Indie",
+        "importance": 0.0133405573892237
+      },
+      {
+        "feature": "tag_Multiplayer",
+        "importance": 0.011584749162241547
+      }
+    ],
+    "top_10_features_reviews": [
+      {
+        "feature": "total_ratings",
+        "importance": 687
+      },
+      {
+        "feature": "price",
+        "importance": 491
+      },
+      {
+        "feature": "game_age_days",
+        "importance": 316
+      },
+      {
+        "feature": "achievements",
+        "importance": 264
+      },
+      {
+        "feature": "engagement_score",
+        "importance": 250
+      },
+      {
+        "feature": "release_month",
+        "importance": 250
+      },
+      {
+        "feature": "release_year",
+        "importance": 232
+      },
+      {
+        "feature": "num_genres",
+        "importance": 212
+      },
+      {
+        "feature": "num_categories",
+        "importance": 210
+      },
+      {
+        "feature": "total_tags",
+        "importance": 136
+      }
+    ],
+    "top_5_positive_impacts_owners": [
+      {
+        "feature": "tag_Open_World",
+        "improvement_pct": 3400.0,
+        "type": "binary"
+      },
+      {
+        "feature": "total_ratings",
+        "improvement_pct": 1400.0,
+        "type": "continuous"
+      },
+      {
+        "feature": "engagement_score",
+        "improvement_pct": 1400.0,
+        "type": "continuous"
+      },
+      {
+        "feature": "tag_Survival",
+        "improvement_pct": 1400.0,
+        "type": "binary"
+      },
+      {
+        "feature": "tag_Fps",
+        "improvement_pct": 1400.0,
+        "type": "binary"
+      }
+    ],
+    "top_5_positive_impacts_reviews": [
+      {
+        "feature": "total_ratings",
+        "improvement_pct": 14.2,
+        "type": "continuous"
+      },
+      {
+        "feature": "engagement_score",
+        "improvement_pct": 14.2,
+        "type": "continuous"
+      },
+      {
+        "feature": "achievements",
+        "improvement_pct": 14.1,
+        "type": "continuous"
+      },
+      {
+        "feature": "num_categories",
+        "improvement_pct": 13.4,
+        "type": "continuous"
+      },
+      {
+        "feature": "tag_Puzzle",
+        "improvement_pct": 13.2,
+        "type": "binary"
+      }
+    ]
+  },
+  "model_insights": {
+    "what_models_learned": [
+      "Owners model learned to predict game reach using platform support, genres, pricing, and game features",
+      "Review model learned to predict user satisfaction based on game quality indicators and feature combinations",
+      "Both models use 43 features from actual Steam data to make predictions"
+    ],
+    "why_this_approach": [
+      "Log transformation for owners handles the wide 10K-200M range and makes predictions more stable",
+      "Gradient Boosting for owners provides better handling of non-linear relationships",
+      "LightGBM for reviews is faster and handles sparse features (tags) efficiently",
+      "Cross-validation ensures models generalize well to unseen games",
+      "80/20 train/test split validates real-world performance"
+    ],
+    "model_behavior": [
+      "Owners model: CV R\u00b2 = 0.882, Test R\u00b2 = 0.888 (overfitting check: minimal)",
+      "Review model: CV R\u00b2 = 0.168, Test R\u00b2 = 0.159 (overfitting check: minimal)",
+      "Models focus on IMPROVEMENT ANALYSIS rather than exact prediction accuracy",
+      "Feature impact analysis shows what changes improve outcomes, not just correlation"
+    ],
+    "recommendations_for_improvement": [
+      "Review model has low R\u00b2. Reviews may be inherently unpredictable from available features."
+    ]
+  }
+}

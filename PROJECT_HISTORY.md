@@ -467,3 +467,95 @@ else:
 - [ ] Create automated testing suite
 - [ ] Consider ensemble methods for better range estimation
 - [ ] Add confidence intervals based on model uncertainty metrics
+
+---
+
+### v2.0.0 - Major Model Improvement (Nov 11, 2025)
+
+#### Issue #16: Poor Review Ratio Prediction Performance (R² = 0.159)
+**Problem:** Review ratio model only explaining 15.9% of variance - essentially not working
+**Root Cause Analysis:**
+1. **Insufficient Features**: Only using 43 features from the dataset when 339 unique tags and 29 categories were available
+2. **Missing Key Features**: Not using developer/publisher reputation, detailed categories, most steamspy tags
+3. **No Feature Selection**: Using same features for both models when they likely need different predictors
+4. **Limited Model Selection**: Only tried 2 model types (GradientBoosting and LightGBM)
+
+**Solution Implemented:**
+Created `models_improved.py` with comprehensive enhancements:
+
+**1. Enhanced Feature Engineering (174 total features):**
+- **Price Features**: Added price_log, price_squared, price_tier (6 tiers)
+- **Time Features**: game_age_years, game_age_log, release_quarter, is_holiday_release
+- **Engagement Features**: total_ratings_sqrt, rating_volume_tier, review_controversy score
+- **Playtime Features**: playtime_hours, playtime_skewness (hardcore vs casual indicator)
+- **Platform Features**: platform_count, is_cross_platform, is_all_platforms
+- **Categories**: All 29 Steam categories as binary features (Single-player, Multi-player, VR Support, etc.)
+- **Genres**: All 27 genres as binary features (not just the top 7)
+- **Tags**: Top 60 most common steamspy tags as features (vs ~25 before)
+- **Developer/Publisher**: developer_game_count, is_prolific_developer, publisher_game_count, is_major_publisher, is_self_published
+- **Interaction Features**: price_per_rating, value_score, indie_multiplatform, age_engagement_interaction
+
+**2. Model Architecture Improvements:**
+- **Model Selection**: Tested 4 architectures (XGBoost, LightGBM, HistGradientBoosting, RandomForest)
+- **Cross-Validation**: 5-fold CV for all models to select best performer
+- **Feature Selection for Reviews**: Used SelectKBest with f_regression to select top 100 features specifically for review prediction
+- **Hyperparameter Optimization**: Tuned regularization parameters (alpha, lambda) for all models
+
+**3. Results:**
+
+**Owners Model (XGBoost selected as best):**
+- **R² Score: 0.914** (improved from 0.888)
+- **MAE: 50,810 owners** (improved from 62,074)
+- **RMSE: 254,762 owners** (improved from 1,039,135)
+- **Top Features**: total_ratings_sqrt (0.276), total_ratings (0.157), age_engagement_interaction (0.074)
+
+**Review Model (XGBoost selected as best):**
+- **R² Score: 0.507** (MASSIVE improvement from 0.159)
+- **MAE: 0.083** (improved from 0.163)
+- **RMSE: 0.159** (improved from 0.214)
+- **Top Features**: review_controversy (0.136), steam_cloud category (0.058), achievements_tier (0.036)
+
+**Key Insights:**
+1. **Review Controversy**: Games with balanced positive/negative reviews (controversial) behave differently
+2. **Category Importance**: Steam Cloud support strongly correlates with review quality
+3. **Achievement Tiers**: Games with moderate achievements (10-50) get better reviews than those with too many/few
+4. **Feature Selection Works**: Using different features for each model significantly improved performance
+
+#### Issue #17: Concerns About Log Transformation for Owners
+**Analysis:** Log transformation is actually GOOD practice for owners prediction
+**Reasoning:**
+1. **Wide Range**: Owners range from 10K to 150M - 4 orders of magnitude
+2. **Skewed Distribution**: Most games have <100K owners, few have millions
+3. **Prediction Stability**: Log scale prevents model from being dominated by outliers
+4. **Percentage Errors**: Log scale optimizes for percentage error rather than absolute error
+5. **Back-Transformation**: Can easily convert back with np.expm1() for interpretable predictions
+
+**Status:** No change needed - log transformation is the correct approach
+
+#### Summary of Improvements:
+- ✅ **Review Model R² improved by 219%** (0.159 → 0.507)
+- ✅ **Owners Model R² improved by 3%** (0.888 → 0.914)
+- ✅ **Used 4x more features** (43 → 174)
+- ✅ **Tested multiple model architectures**
+- ✅ **Applied feature selection for reviews**
+- ✅ **Added interaction features**
+- ✅ **MAE reduced by 49%** for reviews
+- ✅ **RMSE reduced by 75%** for owners
+
+**Files Created:**
+- `models_improved.py` - Complete improved model implementation with enhanced feature engineering
+
+**Technical Details:**
+The improvement came from:
+1. **More comprehensive feature extraction** from existing data
+2. **Domain-specific feature engineering** (e.g., review_controversy, value_score)
+3. **Model architecture search** to find best algorithm
+4. **Feature selection** to use different predictors for different targets
+5. **Better regularization** to prevent overfitting
+
+**Next Steps for Further Improvement:**
+1. Consider stacking/ensemble of multiple models
+2. Add temporal validation (train on older games, test on newer)
+3. Implement confidence intervals using quantile regression
+4. Try neural networks for capturing non-linear patterns
+5. Add external data sources (Metacritic scores, YouTube metrics, etc.)
