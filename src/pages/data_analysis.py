@@ -9,7 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
-from models import load_steam_data, train_models
+from src.models import load_steam_data, train_models
 
 
 def data_analysis_page():

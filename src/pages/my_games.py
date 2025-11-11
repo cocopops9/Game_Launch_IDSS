@@ -5,7 +5,7 @@ My Games page - view and manage saved configurations
 import pandas as pd
 import streamlit as st
 
-from persistence import delete_configuration, delete_game
+from src.persistence import delete_configuration, delete_game
 
 
 def my_games_page():

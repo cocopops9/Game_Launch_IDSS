@@ -7,7 +7,7 @@ import json
 import time
 import streamlit as st
 from datetime import datetime
-from utils import convert_numpy_types
+from src.utils import convert_numpy_types
 
 
 # File location for saved games
