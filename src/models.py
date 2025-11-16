@@ -409,81 +409,32 @@ def train_improved_models(df, feature_cols):
     feature_cols_clean = X_train.columns.tolist()
     
     # ============================================================================
-    # MODEL 1: OWNERS PREDICTION (using ensemble)
+    # MODEL 1: OWNERS PREDICTION (XGBoost - best performer)
     # ============================================================================
-    
-    print("\n📈 Training Owners Model (Ensemble)...")
-    
-    # Try multiple models and pick the best
-    models_to_try = {
-        'XGBoost': XGBRegressor(
-            n_estimators=200,
-            learning_rate=0.05,
-            max_depth=6,
-            min_child_weight=3,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_alpha=0.1,
-            reg_lambda=1,
-            random_state=42,
-            n_jobs=-1
-        ),
-        'LightGBM': lgb.LGBMRegressor(
-            n_estimators=200,
-            learning_rate=0.05,
-            max_depth=6,
-            num_leaves=40,
-            min_child_samples=20,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_alpha=0.1,
-            reg_lambda=1,
-            random_state=42,
-            n_jobs=-1,
-            verbose=-1
-        ),
-        'HistGradientBoosting': HistGradientBoostingRegressor(
-            max_iter=200,
-            learning_rate=0.05,
-            max_depth=8,
-            min_samples_leaf=20,
-            l2_regularization=1.0,
-            random_state=42
-        ),
-        'RandomForest': RandomForestRegressor(
-            n_estimators=200,
-            max_depth=10,
-            min_samples_split=20,
-            min_samples_leaf=10,
-            max_features='sqrt',
-            random_state=42,
-            n_jobs=-1
-        )
-    }
-    
-    best_score = -np.inf
-    best_model = None
-    best_model_name = None
-    
-    for name, model in models_to_try.items():
-        print(f"  Testing {name}...")
-        
-        # Cross-validation
-        cv_scores = cross_val_score(model, X_train, y_train_log, cv=5, scoring='r2', n_jobs=-1)
-        cv_mean = cv_scores.mean()
-        
-        print(f"    CV R² = {cv_mean:.3f} (+/- {cv_scores.std() * 2:.3f})")
-        
-        if cv_mean > best_score:
-            best_score = cv_mean
-            best_model = model
-            best_model_name = name
-    
-    print(f"\n✅ Best model for Owners: {best_model_name} (CV R² = {best_score:.3f})")
-    
-    # Train best model
-    best_model.fit(X_train, y_train_log)
-    owners_model = best_model
+
+    print("\n📈 Training Owners Model (XGBoost)...")
+
+    # Use XGBoost directly (best from testing)
+    owners_model = XGBRegressor(
+        n_estimators=150,  # Reduced from 200 for speed
+        learning_rate=0.08,
+        max_depth=6,
+        min_child_weight=3,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        reg_alpha=0.1,
+        reg_lambda=1,
+        random_state=42,
+        n_jobs=-1
+    )
+
+    # Quick 3-fold CV for validation
+    print("  Running 3-fold cross-validation...")
+    cv_scores = cross_val_score(owners_model, X_train, y_train_log, cv=3, scoring='r2', n_jobs=-1)
+    print(f"  CV R² = {cv_scores.mean():.3f} (+/- {cv_scores.std() * 2:.3f})")
+
+    # Train
+    owners_model.fit(X_train, y_train_log)
     
     # Evaluate
     owners_pred_log = owners_model.predict(X_test)
@@ -498,81 +449,40 @@ def train_improved_models(df, feature_cols):
     print(f"  Test RMSE: {test_rmse_owners:,.0f} owners")
     
     # ============================================================================
-    # MODEL 2: REVIEW RATIO PREDICTION (with feature selection)
+    # MODEL 2: REVIEW RATIO PREDICTION (XGBoost with feature selection)
     # ============================================================================
-    
-    print("\n⭐ Training Review Model (with feature selection)...")
-    
+
+    print("\n⭐ Training Review Model (XGBoost with feature selection)...")
+
     # Feature selection for review model
-    # Reviews might be influenced by different features than owners
     selector = SelectKBest(score_func=f_regression, k=100)  # Select top 100 features
     X_train_selected = selector.fit_transform(X_train, y_train_rev)
     X_test_selected = selector.transform(X_test)
-    
+
     selected_features = X_train.columns[selector.get_support()].tolist()
-    print(f"  Selected {len(selected_features)} features for review model")
-    
-    # Try different models for reviews
-    review_models_to_try = {
-        'XGBoost': XGBRegressor(
-            n_estimators=300,
-            learning_rate=0.03,
-            max_depth=5,
-            min_child_weight=5,
-            subsample=0.7,
-            colsample_bytree=0.7,
-            reg_alpha=0.5,
-            reg_lambda=2,
-            random_state=42,
-            n_jobs=-1
-        ),
-        'LightGBM': lgb.LGBMRegressor(
-            n_estimators=300,
-            learning_rate=0.03,
-            max_depth=5,
-            num_leaves=31,
-            min_child_samples=30,
-            subsample=0.7,
-            colsample_bytree=0.7,
-            reg_alpha=0.5,
-            reg_lambda=2,
-            random_state=42,
-            n_jobs=-1,
-            verbose=-1
-        ),
-        'RandomForest': RandomForestRegressor(
-            n_estimators=300,
-            max_depth=8,
-            min_samples_split=30,
-            min_samples_leaf=15,
-            max_features='sqrt',
-            random_state=42,
-            n_jobs=-1
-        )
-    }
-    
-    best_review_score = -np.inf
-    best_review_model = None
-    best_review_model_name = None
-    
-    for name, model in review_models_to_try.items():
-        print(f"  Testing {name}...")
-        
-        cv_scores = cross_val_score(model, X_train_selected, y_train_rev, cv=5, scoring='r2', n_jobs=-1)
-        cv_mean = cv_scores.mean()
-        
-        print(f"    CV R² = {cv_mean:.3f} (+/- {cv_scores.std() * 2:.3f})")
-        
-        if cv_mean > best_review_score:
-            best_review_score = cv_mean
-            best_review_model = model
-            best_review_model_name = name
-    
-    print(f"\n✅ Best model for Reviews: {best_review_model_name} (CV R² = {best_review_score:.3f})")
-    
-    # Train best model
-    best_review_model.fit(X_train_selected, y_train_rev)
-    review_model = best_review_model
+    print(f"  Selected {len(selected_features)} features")
+
+    # Use XGBoost directly (best from testing)
+    review_model = XGBRegressor(
+        n_estimators=150,  # Reduced from 300 for speed
+        learning_rate=0.05,
+        max_depth=5,
+        min_child_weight=5,
+        subsample=0.7,
+        colsample_bytree=0.7,
+        reg_alpha=0.5,
+        reg_lambda=2,
+        random_state=42,
+        n_jobs=-1
+    )
+
+    # Quick 3-fold CV
+    print("  Running 3-fold cross-validation...")
+    cv_scores = cross_val_score(review_model, X_train_selected, y_train_rev, cv=3, scoring='r2', n_jobs=-1)
+    print(f"  CV R² = {cv_scores.mean():.3f} (+/- {cv_scores.std() * 2:.3f})")
+
+    # Train
+    review_model.fit(X_train_selected, y_train_rev)
     
     # Evaluate
     reviews_pred = review_model.predict(X_test_selected)
@@ -640,11 +550,11 @@ def train_improved_models(df, feature_cols):
             'owners_r2': test_r2_owners,
             'owners_mae': test_mae_owners,
             'owners_rmse': test_rmse_owners,
-            'owners_model_name': best_model_name,
+            'owners_model_name': 'XGBoost',
             'reviews_r2': test_r2_reviews,
             'reviews_mae': test_mae_reviews,
             'reviews_rmse': test_rmse_reviews,
-            'reviews_model_name': best_review_model_name
+            'reviews_model_name': 'XGBoost'
         }
     }
 
