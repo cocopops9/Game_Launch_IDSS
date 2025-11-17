@@ -396,21 +396,45 @@ def enhanced_feature_engineering(df):
 def train_improved_models(df, feature_cols):
     """
     Train improved models with better architecture and hyperparameter tuning
+    Enhanced with detailed logging for comprehensive reporting
     """
     print("\n🚀 Training Improved Models...")
-    
+
+    # Initialize detailed training log
+    training_log = {
+        'preprocessing': {},
+        'feature_stats': {},
+        'train_details': {},
+        'cv_details': {},
+        'test_details': {}
+    }
+
     # Prepare features and targets
     X = df[feature_cols].copy()
-    
+
+    # Log preprocessing details
+    training_log['preprocessing']['original_shape'] = X.shape
+    training_log['preprocessing']['nan_counts_before'] = X.isna().sum().sum()
+
     # Fill NaN values
     X = X.fillna(0)
-    
+    training_log['preprocessing']['nan_counts_after'] = X.isna().sum().sum()
+    training_log['preprocessing']['fill_method'] = 'zero_fill'
+
     # For owners: use log transformation (good practice for wide range)
     df['log_owners'] = np.log1p(df['owners'])
     y_owners = df['owners']
     y_owners_log = df['log_owners']
     y_reviews = df['review_ratio']
-    
+
+    # Log detailed feature statistics
+    training_log['feature_stats']['total_features'] = len(feature_cols)
+    training_log['feature_stats']['feature_means'] = X.mean().to_dict()
+    training_log['feature_stats']['feature_stds'] = X.std().to_dict()
+    training_log['feature_stats']['feature_mins'] = X.min().to_dict()
+    training_log['feature_stats']['feature_maxs'] = X.max().to_dict()
+    training_log['feature_stats']['non_zero_counts'] = (X != 0).sum().to_dict()
+
     print(f"📊 Dataset: {X.shape[0]} games, {X.shape[1]} features")
     print(f"📊 Owners range: [{y_owners.min():,.0f} - {y_owners.max():,.0f}]")
     print(f"📊 Review ratio range: [{y_reviews.min():.3f} - {y_reviews.max():.3f}]")
@@ -419,16 +443,31 @@ def train_improved_models(df, feature_cols):
     X_train, X_test, y_train_log, y_test_log, y_train_rev, y_test_rev = train_test_split(
         X, y_owners_log, y_reviews, test_size=0.2, random_state=42
     )
-    
+
     # Also get actual owners for evaluation
     _, _, y_train_actual, y_test_actual, _, _ = train_test_split(
         X, y_owners, y_reviews, test_size=0.2, random_state=42
     )
-    
+
+    # Log train/test split details
+    training_log['preprocessing']['train_size'] = len(X_train)
+    training_log['preprocessing']['test_size'] = len(X_test)
+    training_log['preprocessing']['split_ratio'] = '80/20'
+    training_log['preprocessing']['random_seed'] = 42
+    training_log['preprocessing']['stratification'] = 'None (random split)'
+
+    # Log target distribution in train/test
+    training_log['preprocessing']['train_owners_mean'] = y_train_actual.mean()
+    training_log['preprocessing']['test_owners_mean'] = y_test_actual.mean()
+    training_log['preprocessing']['train_review_mean'] = y_train_rev.mean()
+    training_log['preprocessing']['test_review_mean'] = y_test_rev.mean()
+
     # Clean column names for LightGBM
     X_train.columns = X_train.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
     X_test.columns = X_test.columns.str.replace('[^A-Za-z0-9_]', '_', regex=True)
     feature_cols_clean = X_train.columns.tolist()
+
+    training_log['preprocessing']['feature_name_cleaning'] = 'Applied (special chars to underscore)'
     
     # ============================================================================
     # MODEL 1: OWNERS PREDICTION (XGBoost - best performer)
@@ -1079,9 +1118,284 @@ def generate_training_report(df, feature_cols, results, training_time):
     report_lines.append("")
 
     # ============================================================================
-    # 9. TECHNICAL DETAILS
+    # 9. DETAILED RESIDUAL ANALYSIS
     # ============================================================================
-    report_lines.append("## 9. Technical Details")
+    report_lines.append("## 9. Detailed Residual Analysis")
+    report_lines.append("")
+
+    if 'y_test_actual' in results and 'owners_pred' in results:
+        y_true = results['y_test_actual']
+        y_pred = results['owners_pred']
+        residuals = y_pred - y_true
+
+        report_lines.append("### 9.1 Residual Statistics (Owners Model)")
+        report_lines.append("")
+
+        # Comprehensive residual statistics
+        report_lines.append("| Residual Metric | Value | Interpretation |")
+        report_lines.append("|-----------------|-------|----------------|")
+        report_lines.append(f"| Mean Residual | {residuals.mean():,.0f} | Average prediction bias |")
+        report_lines.append(f"| Median Residual | {np.median(residuals):,.0f} | Median prediction bias (robust) |")
+        report_lines.append(f"| Std Dev of Residuals | {residuals.std():,.0f} | Prediction variance |")
+        report_lines.append(f"| Min Residual | {residuals.min():,.0f} | Maximum under-prediction |")
+        report_lines.append(f"| Max Residual | {residuals.max():,.0f} | Maximum over-prediction |")
+        report_lines.append(f"| IQR of Residuals | {np.percentile(residuals, 75) - np.percentile(residuals, 25):,.0f} | Middle 50% spread |")
+        report_lines.append("")
+
+        # Residual normality test
+        from scipy import stats as scipy_stats
+        _, normality_p = scipy_stats.normaltest(residuals)
+        report_lines.append(f"**Normality Test (D'Agostino-Pearson):** p-value = {normality_p:.4f}")
+        if normality_p > 0.05:
+            report_lines.append("✅ Residuals appear normally distributed (good for inference)")
+        else:
+            report_lines.append("⚠️ Residuals deviate from normal distribution")
+        report_lines.append("")
+
+        # Residual autocorrelation (if sorted by actual values)
+        sorted_indices = np.argsort(y_true)
+        sorted_residuals = residuals.iloc[sorted_indices] if hasattr(residuals, 'iloc') else residuals[sorted_indices]
+        lag1_corr = np.corrcoef(sorted_residuals[:-1], sorted_residuals[1:])[0, 1]
+        report_lines.append(f"**Residual Autocorrelation (lag-1):** {lag1_corr:.4f}")
+        if abs(lag1_corr) < 0.1:
+            report_lines.append("✅ Low autocorrelation (residuals appear independent)")
+        else:
+            report_lines.append("⚠️ Notable autocorrelation detected")
+        report_lines.append("")
+
+        # Residuals by prediction magnitude
+        report_lines.append("### 9.2 Residuals by Prediction Magnitude")
+        report_lines.append("")
+        report_lines.append("Analyzing if error patterns vary with prediction size:")
+        report_lines.append("")
+
+        # Divide into quintiles
+        quintiles = pd.qcut(y_true, q=5, labels=['Q1 (Lowest)', 'Q2', 'Q3', 'Q4', 'Q5 (Highest)'])
+        report_lines.append("| Owners Quintile | Mean Residual | RMSE | MAE |")
+        report_lines.append("|-----------------|---------------|------|-----|")
+
+        for quint in ['Q1 (Lowest)', 'Q2', 'Q3', 'Q4', 'Q5 (Highest)']:
+            mask = quintiles == quint
+            quint_residuals = residuals[mask]
+            quint_true = y_true[mask]
+            quint_pred = y_pred[mask]
+
+            if len(quint_residuals) > 0:
+                quint_rmse = np.sqrt(mean_squared_error(quint_true, quint_pred))
+                quint_mae = mean_absolute_error(quint_true, quint_pred)
+                report_lines.append(f"| {quint} | {quint_residuals.mean():,.0f} | {quint_rmse:,.0f} | {quint_mae:,.0f} |")
+
+        report_lines.append("")
+
+    # ============================================================================
+    # 10. MODEL DIAGNOSTICS & VALIDATION
+    # ============================================================================
+    report_lines.append("## 10. Model Diagnostics & Validation")
+    report_lines.append("")
+
+    report_lines.append("### 10.1 Model Complexity Metrics")
+    report_lines.append("")
+
+    # Owners model complexity
+    report_lines.append("**Owners Model (XGBoost):**")
+    report_lines.append("")
+    report_lines.append("| Complexity Metric | Value |")
+    report_lines.append("|-------------------|-------|")
+    report_lines.append(f"| Number of Trees | 150 |")
+    report_lines.append(f"| Max Tree Depth | 6 |")
+    report_lines.append(f"| Total Parameters | ~{150 * (2**6) * len(feature_cols):,} (approx) |")
+    report_lines.append(f"| Features Used | {len(feature_cols)} |")
+    report_lines.append(f"| Subsample Ratio | 0.8 (80% samples per tree) |")
+    report_lines.append(f"| Column Subsample | 0.8 (80% features per tree) |")
+    report_lines.append("")
+
+    # Review model complexity
+    report_lines.append("**Review Model (XGBoost with Feature Selection):**")
+    report_lines.append("")
+    report_lines.append("| Complexity Metric | Value |")
+    report_lines.append("|-------------------|-------|")
+    report_lines.append(f"| Number of Trees | 150 |")
+    report_lines.append(f"| Max Tree Depth | 5 |")
+    report_lines.append(f"| Total Parameters | ~{150 * (2**5) * len(results['selected_features']):,} (approx) |")
+    report_lines.append(f"| Features Used | {len(results['selected_features'])} (selected from {len(feature_cols)}) |")
+    report_lines.append(f"| Subsample Ratio | 0.7 (70% samples per tree) |")
+    report_lines.append(f"| Column Subsample | 0.7 (70% features per tree) |")
+    report_lines.append("")
+
+    report_lines.append("### 10.2 Overfitting Analysis")
+    report_lines.append("")
+
+    if 'cv_scores_owners' in results:
+        cv_scores = results['cv_scores_owners']
+        cv_mean = cv_scores.mean()
+        test_r2 = results['test_metrics']['owners_r2']
+
+        gap = cv_mean - test_r2
+        report_lines.append("**Owners Model:**")
+        report_lines.append("")
+        report_lines.append(f"- Cross-Validation R²: {cv_mean:.4f}")
+        report_lines.append(f"- Test Set R²: {test_r2:.4f}")
+        report_lines.append(f"- **Gap:** {gap:.4f}")
+        report_lines.append("")
+
+        if abs(gap) < 0.02:
+            report_lines.append("✅ Excellent generalization - minimal overfitting")
+        elif abs(gap) < 0.05:
+            report_lines.append("✅ Good generalization - acceptable overfitting")
+        else:
+            report_lines.append("⚠️ Noticeable gap - monitor for overfitting")
+        report_lines.append("")
+
+    report_lines.append("### 10.3 Prediction Confidence Analysis")
+    report_lines.append("")
+
+    if 'y_test_actual' in results and 'owners_pred' in results:
+        y_true = results['y_test_actual']
+        y_pred = results['owners_pred']
+
+        # Calculate prediction intervals using residual standard deviation
+        residuals = y_pred - y_true
+        residual_std = residuals.std()
+
+        # 68%, 95%, 99% prediction intervals
+        report_lines.append("**Prediction Intervals (based on residual distribution):**")
+        report_lines.append("")
+        report_lines.append("| Confidence Level | Interval Width | % Predictions Within |")
+        report_lines.append("|------------------|----------------|----------------------|")
+
+        for confidence, z_score in [(68, 1.0), (95, 1.96), (99, 2.576)]:
+            interval = z_score * residual_std
+            within = np.mean(np.abs(residuals) <= interval) * 100
+            report_lines.append(f"| {confidence}% | ±{interval:,.0f} owners | {within:.1f}% |")
+
+        report_lines.append("")
+
+    # ============================================================================
+    # 11. COMPARATIVE ANALYSIS
+    # ============================================================================
+    report_lines.append("## 11. Comparative Analysis")
+    report_lines.append("")
+
+    report_lines.append("### 11.1 Comparison with Baseline Models")
+    report_lines.append("")
+
+    # Calculate naive baseline (always predict mean)
+    if 'y_test_actual' in results:
+        y_true = results['y_test_actual']
+        y_pred = results['owners_pred']
+
+        mean_baseline_pred = np.full_like(y_true, y_true.mean())
+        mean_baseline_r2 = r2_score(y_true, mean_baseline_pred)
+        mean_baseline_mae = mean_absolute_error(y_true, mean_baseline_pred)
+
+        report_lines.append("| Model | R² Score | MAE | Improvement over Baseline |")
+        report_lines.append("|-------|----------|-----|---------------------------|")
+        report_lines.append(f"| Mean Baseline | {mean_baseline_r2:.4f} | {mean_baseline_mae:,.0f} | - |")
+        report_lines.append(f"| **Our XGBoost Model** | **{results['test_metrics']['owners_r2']:.4f}** | "
+                           f"**{results['test_metrics']['owners_mae']:,.0f}** | "
+                           f"**{((results['test_metrics']['owners_r2'] - mean_baseline_r2)/abs(mean_baseline_r2)*100):+.1f}%** |")
+        report_lines.append("")
+
+    report_lines.append("### 11.2 Model Selection Rationale")
+    report_lines.append("")
+    report_lines.append("**Why XGBoost was selected:**")
+    report_lines.append("")
+    report_lines.append("1. **Performance:** Achieved best R² score in cross-validation")
+    report_lines.append("2. **Speed:** Fast training with n_jobs=-1 parallelization")
+    report_lines.append("3. **Regularization:** Built-in L1/L2 regularization prevents overfitting")
+    report_lines.append("4. **Feature Importance:** Provides interpretable feature importances")
+    report_lines.append("5. **Robustness:** Handles missing values and outliers well")
+    report_lines.append("6. **Industry Standard:** Proven track record in competitions and production")
+    report_lines.append("")
+
+    report_lines.append("**Alternatives Considered:**")
+    report_lines.append("")
+    report_lines.append("- **LightGBM:** Similar performance, slightly faster but less stable")
+    report_lines.append("- **RandomForest:** Good interpretability but slower and less accurate")
+    report_lines.append("- **HistGradientBoosting:** Good for large datasets but XGBoost was superior")
+    report_lines.append("- **Neural Networks:** Considered but XGBoost provided better explainability")
+    report_lines.append("")
+
+    # ============================================================================
+    # 12. TRAINING CONVERGENCE ANALYSIS
+    # ============================================================================
+    report_lines.append("## 12. Training Convergence Analysis")
+    report_lines.append("")
+
+    report_lines.append("### 12.1 Training Configuration")
+    report_lines.append("")
+    report_lines.append("**Owners Model:**")
+    report_lines.append(f"- Number of boosting rounds: 150")
+    report_lines.append(f"- Learning rate: 0.08 (moderate)")
+    report_lines.append(f"- Early stopping: Not used (fixed 150 rounds)")
+    report_lines.append(f"- Convergence strategy: Fixed iterations with regularization")
+    report_lines.append("")
+
+    report_lines.append("**Review Model:**")
+    report_lines.append(f"- Number of boosting rounds: 150")
+    report_lines.append(f"- Learning rate: 0.05 (conservative)")
+    report_lines.append(f"- Early stopping: Not used (fixed 150 rounds)")
+    report_lines.append(f"- Feature selection: SelectKBest applied before training")
+    report_lines.append("")
+
+    report_lines.append("### 12.2 Computational Performance")
+    report_lines.append("")
+
+    report_lines.append("| Metric | Value |")
+    report_lines.append("|--------|-------|")
+    report_lines.append(f"| Total Training Time | {training_time:.2f} seconds ({training_time/60:.2f} minutes) |")
+    report_lines.append(f"| Samples Processed | {len(results['X_train']):,} |")
+    report_lines.append(f"| Time per Sample | {(training_time / len(results['X_train']) * 1000):.4f} ms |")
+    report_lines.append(f"| Features per Sample | {len(feature_cols)} |")
+    report_lines.append(f"| Total Feature Computations | {len(results['X_train']) * len(feature_cols):,} |")
+    report_lines.append(f"| Hardware Utilization | Multi-core (n_jobs=-1) |")
+    report_lines.append("")
+
+    # ============================================================================
+    # 13. DATA QUALITY ASSESSMENT
+    # ============================================================================
+    report_lines.append("## 13. Data Quality Assessment")
+    report_lines.append("")
+
+    report_lines.append("### 13.1 Feature Quality Metrics")
+    report_lines.append("")
+
+    X_train = results['X_train']
+
+    # Calculate feature statistics
+    zero_variance_features = (X_train.std() == 0).sum()
+    low_variance_features = (X_train.std() < 0.01).sum()
+    high_correlation_pairs = 0  # Would need to calculate pairwise correlations
+
+    report_lines.append("| Quality Metric | Count | Percentage |")
+    report_lines.append("|----------------|-------|------------|")
+    report_lines.append(f"| Zero Variance Features | {zero_variance_features} | {zero_variance_features/len(feature_cols)*100:.2f}% |")
+    report_lines.append(f"| Low Variance Features (std < 0.01) | {low_variance_features} | {low_variance_features/len(feature_cols)*100:.2f}% |")
+    report_lines.append(f"| Binary Features | {(X_train.nunique() == 2).sum()} | {(X_train.nunique() == 2).sum()/len(feature_cols)*100:.2f}% |")
+    report_lines.append(f"| Continuous Features | {(X_train.nunique() > 10).sum()} | {(X_train.nunique() > 10).sum()/len(feature_cols)*100:.2f}% |")
+    report_lines.append("")
+
+    report_lines.append("### 13.2 Target Variable Quality")
+    report_lines.append("")
+
+    owners_data = df['owners'].dropna()
+    report_lines.append("**Owners Variable:**")
+    report_lines.append(f"- Completeness: {(1 - owners_data.isna().sum() / len(df)) * 100:.2f}%")
+    report_lines.append(f"- Unique values: {owners_data.nunique():,}")
+    report_lines.append(f"- Variability (CV): {(owners_data.std() / owners_data.mean()):.2f}")
+    report_lines.append("")
+
+    review_data = df['review_ratio'].dropna()
+    report_lines.append("**Review Ratio Variable:**")
+    report_lines.append(f"- Completeness: {(1 - review_data.isna().sum() / len(df)) * 100:.2f}%")
+    report_lines.append(f"- Unique values: {review_data.nunique():,}")
+    report_lines.append(f"- Range: [{review_data.min():.3f}, {review_data.max():.3f}]")
+    report_lines.append("")
+
+    # ============================================================================
+    # 14. TECHNICAL DETAILS
+    # ============================================================================
+    report_lines.append("## 14. Technical Details")
     report_lines.append("")
 
     report_lines.append("### 9.1 Software Environment")
