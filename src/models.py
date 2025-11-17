@@ -163,63 +163,25 @@ def enhanced_feature_engineering(df):
         feature_cols.extend(['required_age', 'is_mature'])
     
     # ============================================================================
-    # 2. ENGAGEMENT FEATURES
+    # 2. REMOVED: POST-LAUNCH ENGAGEMENT FEATURES
     # ============================================================================
-    
-    # Ratings features
+    # CRITICAL FIX: Removed all post-launch features that cause data leakage:
+    # - Ratings (positive_ratings, negative_ratings, total_ratings, etc.)
+    # - Playtime (average_playtime, median_playtime, engagement_score, etc.)
+    # These features are NOT available at game launch time and cannot be used
+    # for predicting launch success.
+    #
+    # However, we still need to calculate review_ratio for TARGET variable
     if 'positive_ratings' in df.columns and 'negative_ratings' in df.columns:
         df['positive_ratings'] = pd.to_numeric(df['positive_ratings'], errors='coerce').fillna(0)
         df['negative_ratings'] = pd.to_numeric(df['negative_ratings'], errors='coerce').fillna(0)
-        
-        df['total_ratings'] = df['positive_ratings'] + df['negative_ratings']
-        df['total_ratings_log'] = np.log1p(df['total_ratings'])
-        df['total_ratings_sqrt'] = np.sqrt(df['total_ratings'])
-        
-        # Review ratio with smoothing to avoid division by zero
+        total_ratings = df['positive_ratings'] + df['negative_ratings']
         df['review_ratio'] = np.where(
-            df['total_ratings'] > 0,
-            df['positive_ratings'] / df['total_ratings'],
-            0.7  # Default for games with no reviews
+            total_ratings > 0,
+            df['positive_ratings'] / total_ratings,
+            0.7
         )
-        
-        # Rating features
-        df['has_reviews'] = (df['total_ratings'] > 0).astype(int)
-        df['rating_volume_tier'] = pd.cut(df['total_ratings'],
-                                         bins=[0, 10, 100, 1000, 10000, 100000],
-                                         labels=[0, 1, 2, 3, 4]).fillna(0).astype(int)
-        
-        # Review sentiment features
-        df['review_controversy'] = np.where(
-            df['total_ratings'] > 0,
-            np.minimum(df['positive_ratings'], df['negative_ratings']) / df['total_ratings'],
-            0
-        )
-        
-        feature_cols.extend(['total_ratings', 'total_ratings_log', 'total_ratings_sqrt',
-                           'has_reviews', 'rating_volume_tier', 'review_controversy'])
-    
-    # Playtime features
-    if 'average_playtime' in df.columns and 'median_playtime' in df.columns:
-        df['average_playtime'] = pd.to_numeric(df['average_playtime'], errors='coerce').fillna(0)
-        df['median_playtime'] = pd.to_numeric(df['median_playtime'], errors='coerce').fillna(0)
-        
-        df['avg_playtime_hours'] = df['average_playtime'] / 60
-        df['median_playtime_hours'] = df['median_playtime'] / 60
-        df['playtime_log'] = np.log1p(df['average_playtime'])
-        
-        # Engagement score combining reviews and playtime
-        df['engagement_score'] = np.log1p(df['total_ratings']) * np.log1p(df['average_playtime'])
-        
-        # Playtime skewness (indicates hardcore vs casual games)
-        df['playtime_skewness'] = np.where(
-            df['median_playtime'] > 0,
-            df['average_playtime'] / df['median_playtime'],
-            1
-        ).clip(0, 10)
-        
-        feature_cols.extend(['average_playtime', 'median_playtime', 'avg_playtime_hours',
-                           'median_playtime_hours', 'playtime_log', 'engagement_score',
-                           'playtime_skewness'])
+        # NOTE: review_ratio is used ONLY as a target variable, NOT as a feature
     
     # Achievement features
     if 'achievements' in df.columns:
@@ -365,28 +327,26 @@ def enhanced_feature_engineering(df):
         feature_cols.extend(['publisher_game_count', 'is_major_publisher', 'is_self_published'])
     
     # ============================================================================
-    # 8. INTERACTION FEATURES
+    # 8. INTERACTION FEATURES (LEGITIMATE PRE-LAUNCH ONLY)
     # ============================================================================
-    
-    # Price-quality interactions
-    if 'price' in df.columns and 'total_ratings' in df.columns:
-        df['price_per_rating'] = np.where(
-            df['total_ratings'] > 0,
-            df['price'] / np.log1p(df['total_ratings']),
-            df['price']
-        )
-        df['value_score'] = df['review_ratio'] * np.log1p(df['average_playtime']) / np.log1p(df['price'] + 1)
-        feature_cols.extend(['price_per_rating', 'value_score'])
-    
-    # Platform-genre interactions
+
+    # REMOVED: Price-rating interactions (used post-launch data)
+    # REMOVED: Age-engagement interactions (used post-launch data)
+
+    # Legitimate interactions using only pre-launch features
     if 'is_cross_platform' in feature_cols and 'genre_indie' in feature_cols:
         df['indie_multiplatform'] = df['is_cross_platform'] * df.get('genre_indie', 0)
         feature_cols.append('indie_multiplatform')
-    
-    # Age-engagement interaction
-    if 'game_age_days' in feature_cols and 'engagement_score' in feature_cols:
-        df['age_engagement_interaction'] = df['game_age_log'] * df['engagement_score']
-        feature_cols.append('age_engagement_interaction')
+
+    # Price-genre interactions (legitimate)
+    if 'price' in df.columns and 'genre_action' in feature_cols:
+        df['price_x_action'] = df['price'] * df.get('genre_action', 0)
+        feature_cols.append('price_x_action')
+
+    # Platform-price interactions (legitimate)
+    if 'platform_count' in feature_cols and 'price' in df.columns:
+        df['platforms_x_price'] = df['platform_count'] * df['price']
+        feature_cols.append('platforms_x_price')
     
     print(f"✅ Created {len(feature_cols)} features")
     
@@ -438,16 +398,50 @@ def train_improved_models(df, feature_cols):
     print(f"📊 Dataset: {X.shape[0]} games, {X.shape[1]} features")
     print(f"📊 Owners range: [{y_owners.min():,.0f} - {y_owners.max():,.0f}]")
     print(f"📊 Review ratio range: [{y_reviews.min():.3f} - {y_reviews.max():.3f}]")
-    
-    # Split data
-    X_train, X_test, y_train_log, y_test_log, y_train_rev, y_test_rev = train_test_split(
-        X, y_owners_log, y_reviews, test_size=0.2, random_state=42
-    )
 
-    # Also get actual owners for evaluation
-    _, _, y_train_actual, y_test_actual, _, _ = train_test_split(
-        X, y_owners, y_reviews, test_size=0.2, random_state=42
-    )
+    # ============================================================================
+    # CRITICAL FIX: TEMPORAL VALIDATION (NOT RANDOM SPLIT)
+    # ============================================================================
+    # Train on games released before 2018, test on games released in 2018+
+    # This simulates real-world deployment where we predict future games
+    # based on historical data only.
+
+    print("\n📅 Implementing temporal train-test split...")
+
+    if 'release_date' in df.columns:
+        temporal_cutoff = pd.Timestamp('2018-01-01')
+        train_mask = df['release_date'] < temporal_cutoff
+        test_mask = df['release_date'] >= temporal_cutoff
+
+        # Ensure we have both training and test data
+        if train_mask.sum() == 0 or test_mask.sum() == 0:
+            print("⚠️ Temporal split failed (no data in one split), falling back to 80/20 split by index")
+            # Fall back to chronological split by index if dates don't work
+            split_idx = int(len(df) * 0.8)
+            train_mask = pd.Series([True] * split_idx + [False] * (len(df) - split_idx), index=df.index)
+            test_mask = ~train_mask
+
+        X_train = X[train_mask]
+        X_test = X[test_mask]
+        y_train_log = y_owners_log[train_mask]
+        y_test_log = y_owners_log[test_mask]
+        y_train_rev = y_reviews[train_mask]
+        y_test_rev = y_reviews[test_mask]
+        y_train_actual = y_owners[train_mask]
+        y_test_actual = y_owners[test_mask]
+
+        print(f"  ✅ Training set: {len(X_train):,} games (< 2018)")
+        print(f"  ✅ Test set: {len(X_test):,} games (>= 2018)")
+        print(f"  ✅ Train/Test ratio: {len(X_train)/len(X)*100:.1f}% / {len(X_test)/len(X)*100:.1f}%")
+    else:
+        print("⚠️ No release_date column found, using random split")
+        # Fall back to random split if no dates available
+        X_train, X_test, y_train_log, y_test_log, y_train_rev, y_test_rev = train_test_split(
+            X, y_owners_log, y_reviews, test_size=0.2, random_state=42
+        )
+        _, _, y_train_actual, y_test_actual, _, _ = train_test_split(
+            X, y_owners, y_reviews, test_size=0.2, random_state=42
+        )
 
     # Log train/test split details
     training_log['preprocessing']['train_size'] = len(X_train)
