@@ -1294,12 +1294,16 @@ def generate_training_report(df, feature_cols, results, training_time):
         mean_baseline_r2 = r2_score(y_true, mean_baseline_pred)
         mean_baseline_mae = mean_absolute_error(y_true, mean_baseline_pred)
 
-        report_lines.append("| Model | R² Score | MAE | Improvement over Baseline |")
-        report_lines.append("|-------|----------|-----|---------------------------|")
+        # Calculate improvements
+        r2_improvement = results['test_metrics']['owners_r2'] - mean_baseline_r2  # Absolute improvement (baseline is 0)
+        mae_improvement_pct = (1 - results['test_metrics']['owners_mae'] / mean_baseline_mae) * 100 if mean_baseline_mae > 0 else 0
+
+        report_lines.append("| Model | R² Score | MAE | MAE Improvement |")
+        report_lines.append("|-------|----------|-----|-----------------|")
         report_lines.append(f"| Mean Baseline | {mean_baseline_r2:.4f} | {mean_baseline_mae:,.0f} | - |")
-        report_lines.append(f"| **Our XGBoost Model** | **{results['test_metrics']['owners_r2']:.4f}** | "
+        report_lines.append(f"| **Our XGBoost Model** | **{results['test_metrics']['owners_r2']:.4f}** (+{r2_improvement:.4f}) | "
                            f"**{results['test_metrics']['owners_mae']:,.0f}** | "
-                           f"**{((results['test_metrics']['owners_r2'] - mean_baseline_r2)/abs(mean_baseline_r2)*100):+.1f}%** |")
+                           f"**{mae_improvement_pct:.1f}% better** |")
         report_lines.append("")
 
     report_lines.append("### 11.2 Model Selection Rationale")
