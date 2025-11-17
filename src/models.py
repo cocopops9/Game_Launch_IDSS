@@ -1169,21 +1169,27 @@ def generate_training_report(df, feature_cols, results, training_time):
         report_lines.append("Analyzing if error patterns vary with prediction size:")
         report_lines.append("")
 
-        # Divide into quintiles
-        quintiles = pd.qcut(y_true, q=5, labels=['Q1 (Lowest)', 'Q2', 'Q3', 'Q4', 'Q5 (Highest)'])
-        report_lines.append("| Owners Quintile | Mean Residual | RMSE | MAE |")
-        report_lines.append("|-----------------|---------------|------|-----|")
+        # Divide into quintiles (handle duplicate bin edges)
+        try:
+            quintiles = pd.qcut(y_true, q=5, labels=['Q1 (Lowest)', 'Q2', 'Q3', 'Q4', 'Q5 (Highest)'], duplicates='drop')
+            report_lines.append("| Owners Quintile | Mean Residual | RMSE | MAE |")
+            report_lines.append("|-----------------|---------------|------|-----|")
 
-        for quint in ['Q1 (Lowest)', 'Q2', 'Q3', 'Q4', 'Q5 (Highest)']:
-            mask = quintiles == quint
-            quint_residuals = residuals[mask]
-            quint_true = y_true[mask]
-            quint_pred = y_pred[mask]
+            # Get unique labels actually created
+            unique_labels = quintiles.cat.categories
+            for quint in unique_labels:
+                mask = quintiles == quint
+                quint_residuals = residuals[mask]
+                quint_true = y_true[mask]
+                quint_pred = y_pred[mask]
 
-            if len(quint_residuals) > 0:
-                quint_rmse = np.sqrt(mean_squared_error(quint_true, quint_pred))
-                quint_mae = mean_absolute_error(quint_true, quint_pred)
-                report_lines.append(f"| {quint} | {quint_residuals.mean():,.0f} | {quint_rmse:,.0f} | {quint_mae:,.0f} |")
+                if len(quint_residuals) > 0:
+                    quint_rmse = np.sqrt(mean_squared_error(quint_true, quint_pred))
+                    quint_mae = mean_absolute_error(quint_true, quint_pred)
+                    report_lines.append(f"| {quint} | {quint_residuals.mean():,.0f} | {quint_rmse:,.0f} | {quint_mae:,.0f} |")
+        except Exception as e:
+            report_lines.append("| Error | Could not compute quintile analysis due to duplicate values | - | - |")
+            report_lines.append(f"| Note | {str(e)[:100]} | - | - |")
 
         report_lines.append("")
 
