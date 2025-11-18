@@ -26,6 +26,7 @@ warnings.filterwarnings('ignore')
 import time
 
 from src.data_loader import SteamDataLoader
+from src.preprocessing_improvements import ImprovedPreprocessor, apply_preprocessing_to_model_pipeline
 
 
 @st.cache_data
@@ -347,9 +348,59 @@ def enhanced_feature_engineering(df):
     if 'platform_count' in feature_cols and 'price' in df.columns:
         df['platforms_x_price'] = df['platform_count'] * df['price']
         feature_cols.append('platforms_x_price')
-    
-    print(f"✅ Created {len(feature_cols)} features")
-    
+
+    # ============================================================================
+    # 9. ADVANCED PREPROCESSING IMPROVEMENTS
+    # Expected gain: +0.04 to +0.12 R²
+    # ============================================================================
+
+    print("  Applying advanced preprocessing improvements...")
+
+    try:
+        preprocessor = ImprovedPreprocessor()
+
+        # Developer history features (HIGH PRIORITY: +0.02-0.03 R²)
+        if 'developer' in df.columns and 'release_date' in df.columns:
+            dev_features = preprocessor.compute_developer_history(df, temporal=True)
+            for col in dev_features.columns:
+                df[col] = dev_features[col].values
+                feature_cols.append(col)
+            print(f"    + Added {len(dev_features.columns)} developer history features")
+
+        # Market saturation features (MEDIUM PRIORITY: +0.01 R²)
+        if 'release_date' in df.columns:
+            sat_features = preprocessor.compute_market_saturation(df)
+            for col in sat_features.columns:
+                df[col] = sat_features[col].values
+                feature_cols.append(col)
+            print(f"    + Added {len(sat_features.columns)} market saturation features")
+
+        # Smart interaction features (MEDIUM PRIORITY: +0.01-0.02 R²)
+        int_features = preprocessor.create_smart_interactions(df)
+        for col in int_features.columns:
+            df[col] = int_features[col].values
+            feature_cols.append(col)
+        print(f"    + Added {len(int_features.columns)} smart interaction features")
+
+        # Price percentiles (MEDIUM PRIORITY: +0.01 R²)
+        if 'price' in df.columns and 'genres' in df.columns:
+            df['price_percentile'] = preprocessor.compute_price_percentiles(df).values
+            feature_cols.append('price_percentile')
+            print("    + Added price percentile feature")
+
+        # Cyclical temporal encoding (LOW PRIORITY: +0.005 R²)
+        cyc_features = preprocessor.cyclical_temporal_encoding(df)
+        for col in cyc_features.columns:
+            df[col] = cyc_features[col].values
+            feature_cols.append(col)
+        print(f"    + Added {len(cyc_features.columns)} cyclical temporal features")
+
+    except Exception as e:
+        print(f"  ⚠️ Some preprocessing improvements failed: {e}")
+        print("    Continuing with base features...")
+
+    print(f"✅ Created {len(feature_cols)} features (with preprocessing improvements)")
+
     return df, feature_cols
 
 
