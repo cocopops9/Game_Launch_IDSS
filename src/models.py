@@ -350,54 +350,72 @@ def enhanced_feature_engineering(df):
         feature_cols.append('platforms_x_price')
 
     # ============================================================================
-    # 9. ADVANCED PREPROCESSING IMPROVEMENTS
-    # Expected gain: +0.04 to +0.12 R²
+    # 9. HIGH-PRIORITY PREPROCESSING IMPROVEMENTS
+    # Based on assessment: Focus on features that actually improve performance
     # ============================================================================
 
-    print("  Applying advanced preprocessing improvements...")
+    print("  Applying high-priority preprocessing improvements...")
 
     try:
         preprocessor = ImprovedPreprocessor()
 
-        # Smart interaction features (MEDIUM PRIORITY: +0.01-0.02 R²)
-        # These are simpler and less likely to cause issues
-        int_features = preprocessor.create_smart_interactions(df)
-        for col in int_features.columns:
-            series = int_features[col]
-            df[col] = series.astype(float).fillna(0).values
-            feature_cols.append(col)
-        print(f"    + Added {len(int_features.columns)} smart interaction features")
-
-        # Price percentiles (MEDIUM PRIORITY: +0.01 R²)
-        if 'price' in df.columns and 'genres' in df.columns:
+        # HIGH PRIORITY #1: Developer Historical Performance (+0.02-0.03 R²)
+        # This is TEMPORAL-SAFE: only uses games released BEFORE current game
+        if 'developer' in df.columns and 'release_date' in df.columns:
+            print("    Computing developer historical performance...")
             try:
-                price_pct = preprocessor.compute_price_percentiles(df)
-                df['price_percentile'] = pd.to_numeric(price_pct, errors='coerce').fillna(50).values
-                feature_cols.append('price_percentile')
-                print("    + Added price percentile feature")
+                dev_features = preprocessor.compute_developer_history(df, temporal=True)
+                for col in dev_features.columns:
+                    values = dev_features[col].values
+                    # Ensure numeric and clean
+                    values = pd.to_numeric(pd.Series(values), errors='coerce').fillna(0).values
+                    values = np.where(np.isinf(values), 0, values)
+                    df[col] = values.astype(np.float64)
+                    feature_cols.append(col)
+                print(f"    + Added {len(dev_features.columns)} developer history features")
             except Exception as e:
-                print(f"    ⚠️ Price percentile failed: {e}")
+                print(f"    ⚠️ Developer history failed: {e}")
 
-        # Cyclical temporal encoding (LOW PRIORITY: +0.005 R²)
-        cyc_features = preprocessor.cyclical_temporal_encoding(df)
-        for col in cyc_features.columns:
-            series = cyc_features[col]
-            df[col] = pd.to_numeric(series, errors='coerce').fillna(0).values
-            feature_cols.append(col)
-        print(f"    + Added {len(cyc_features.columns)} cyclical temporal features")
+        # HIGH PRIORITY #2: Filter Rare Tags (+0.01-0.02 R²)
+        # Remove 313 rare tags, keep only 26+ common tags
+        if 'steamspy_tags' in df.columns:
+            print("    Filtering rare tags...")
+            try:
+                # Remove existing tag features first (will be replaced)
+                old_tag_cols = [c for c in feature_cols if c.startswith('tag_')]
+                for col in old_tag_cols:
+                    feature_cols.remove(col)
 
-        # Market saturation features (MEDIUM PRIORITY: +0.01 R²)
-        # Skip for now as it can cause index issues
-        # if 'release_date' in df.columns:
-        #     sat_features = preprocessor.compute_market_saturation(df)
-        #     ...
+                # Add filtered tag features
+                tag_features = preprocessor.filter_rare_tags(df, min_frequency=0.01)
+                for col in tag_features.columns:
+                    values = tag_features[col].values
+                    df[col] = values.astype(np.float64)
+                    feature_cols.append(col)
+                print(f"    + Added {len(tag_features.columns)} filtered tag features")
+            except Exception as e:
+                print(f"    ⚠️ Tag filtering failed: {e}")
+                # Re-add old tags if filtering failed
+                feature_cols.extend(old_tag_cols)
 
-        # Developer history features are computationally expensive
-        # and can cause issues with temporal calculation
-        # Skip for now to ensure stability
-        # if 'developer' in df.columns and 'release_date' in df.columns:
-        #     dev_features = preprocessor.compute_developer_history(df, temporal=True)
-        #     ...
+        # MEDIUM PRIORITY: Market Saturation (+0.01 R²)
+        # Games released in same time period = competition
+        if 'release_date' in df.columns:
+            print("    Computing market saturation...")
+            try:
+                sat_features = preprocessor.compute_market_saturation(df)
+                for col in sat_features.columns:
+                    values = sat_features[col].values
+                    values = pd.to_numeric(pd.Series(values), errors='coerce').fillna(0).values
+                    values = np.where(np.isinf(values), 0, values)
+                    df[col] = values.astype(np.float64)
+                    feature_cols.append(col)
+                print(f"    + Added {len(sat_features.columns)} market saturation features")
+            except Exception as e:
+                print(f"    ⚠️ Market saturation failed: {e}")
+
+        # NOTE: Smart interactions and cyclical encoding REMOVED
+        # Assessment showed they hurt performance (-3.7% R²)
 
     except Exception as e:
         print(f"  ⚠️ Some preprocessing improvements failed: {e}")
