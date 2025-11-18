@@ -407,16 +407,41 @@ def enhanced_feature_engineering(df):
 
     # Final cleanup: ensure all feature columns are numeric and clean
     print("  Cleaning up feature data...")
+
+    # Remove duplicate feature columns
+    feature_cols = list(dict.fromkeys(feature_cols))
+
     for col in feature_cols:
         if col in df.columns:
-            # Convert to numeric
-            if df[col].dtype == 'object':
-                df[col] = pd.to_numeric(df[col], errors='coerce')
-            # Fill NaN and infinite values
-            df[col] = df[col].fillna(0)
-            df[col] = df[col].replace([np.inf, -np.inf], 0)
-            # Ensure float type for XGBoost
-            df[col] = df[col].astype(np.float64)
+            col_data = df[col]
+
+            # Check if column is actually a DataFrame (multi-column) instead of Series
+            if isinstance(col_data, pd.DataFrame):
+                print(f"    ⚠️ Column '{col}' is a DataFrame, taking first column")
+                col_data = col_data.iloc[:, 0]
+
+            # Convert to numeric values
+            try:
+                # Get values as numpy array first
+                values = col_data.values
+
+                # Handle nested arrays
+                if hasattr(values, 'flatten') and len(values.shape) > 1:
+                    values = values.flatten()
+
+                # Convert to float, coercing errors
+                values = pd.to_numeric(pd.Series(values), errors='coerce').fillna(0).values
+
+                # Replace infinite values
+                values = np.where(np.isinf(values), 0, values)
+
+                # Assign back as float64
+                df[col] = values.astype(np.float64)
+
+            except Exception as e:
+                print(f"    ⚠️ Failed to clean column '{col}': {e}")
+                # Last resort: fill with zeros
+                df[col] = 0.0
 
     print(f"✅ Created {len(feature_cols)} features (with preprocessing improvements)")
 
@@ -532,7 +557,31 @@ def train_improved_models(df, feature_cols):
     feature_cols_clean = X_train.columns.tolist()
 
     training_log['preprocessing']['feature_name_cleaning'] = 'Applied (special chars to underscore)'
-    
+
+    # Final validation: ensure all columns are proper numeric types for XGBoost
+    print("  Validating data for XGBoost...")
+    for col in X_train.columns:
+        # Check for DataFrame columns (should be Series)
+        if isinstance(X_train[col], pd.DataFrame):
+            print(f"    ⚠️ Fixing DataFrame column: {col}")
+            X_train[col] = X_train[col].iloc[:, 0].astype(np.float64)
+            X_test[col] = X_test[col].iloc[:, 0].astype(np.float64)
+        # Ensure numeric dtype
+        if not np.issubdtype(X_train[col].dtype, np.number):
+            print(f"    ⚠️ Converting non-numeric column: {col}")
+            X_train[col] = pd.to_numeric(X_train[col], errors='coerce').fillna(0).astype(np.float64)
+            X_test[col] = pd.to_numeric(X_test[col], errors='coerce').fillna(0).astype(np.float64)
+
+    # Replace any remaining NaN/inf values
+    X_train = X_train.fillna(0).replace([np.inf, -np.inf], 0)
+    X_test = X_test.fillna(0).replace([np.inf, -np.inf], 0)
+
+    # Ensure all float64
+    X_train = X_train.astype(np.float64)
+    X_test = X_test.astype(np.float64)
+
+    print(f"  ✅ Data validation complete: {X_train.shape[1]} features, all float64")
+
     # ============================================================================
     # MODEL 1: OWNERS PREDICTION (XGBoost - best performer)
     # ============================================================================
