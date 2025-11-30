@@ -188,13 +188,12 @@ def display_analysis_results(analysis: dict, features: dict):
     improvements = analysis['improvements']
     risks = analysis['risks']
     success_factors = analysis['success_factors']
-    competitive = analysis['competitive_analysis']
-    
+
     # --- MARKET POSITION DASHBOARD ---
     st.markdown("## 📊 Market Position Analysis")
-    
+
     # Main positioning metrics
-    metric_cols = st.columns(4)
+    metric_cols = st.columns(3)
     
     percentile = positioning['overall_percentile']
     tier = positioning['tier_name'].replace('_', ' ').title()
@@ -220,16 +219,7 @@ def display_analysis_results(analysis: dict, features: dict):
             f"{success_factors['readiness_score']}%",
             help="How many success factors are present"
         )
-    
-    with metric_cols[3]:
-        comp_percentile = competitive['your_predicted_percentile']
-        st.metric(
-            "vs Similar Games",
-            f"{comp_percentile:.0f}th",
-            delta=f"of {competitive['similar_count']:,} games",
-            delta_color="off"
-        )
-    
+
     # Visual percentile gauge
     st.markdown("### Your Market Position")
     fig = create_percentile_gauge(percentile)
