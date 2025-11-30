@@ -172,8 +172,7 @@ def new_game_page():
                 predictions = {
                     'percentile': analysis['positioning']['overall_percentile'],
                     'tier': analysis['positioning']['tier_name'],
-                    'readiness_score': analysis['success_factors']['readiness_score'],
-                    'raw_owners': analysis['raw_prediction']['owners']
+                    'readiness_score': analysis['success_factors']['readiness_score']
                 }
                 save_game_configuration(game_name, features, predictions)
                 st.success(f"✅ Saved configuration for '{game_name}'")
