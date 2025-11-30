@@ -301,15 +301,13 @@ def display_analysis_results(analysis: dict, features: dict):
         for factor in success_factors['present']:
             impact_badge = get_impact_badge(factor['impact'])
             st.markdown(f"- **{factor['factor']}** {impact_badge}")
-            st.caption(f"  ↳ {factor['reason']}")
-    
+
     with col2:
         st.markdown("### Missing ❌")
         if success_factors['missing']:
             for factor in success_factors['missing']:
                 impact_badge = get_impact_badge(factor['impact'])
                 st.markdown(f"- **{factor['factor']}** {impact_badge}")
-                st.caption(f"  ↳ {factor['reason']}")
         else:
             st.success("All major success factors are present!")
     
