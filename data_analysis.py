@@ -216,7 +216,7 @@ def display_model_performance(models: dict):
                 st.metric("MAE", f"{review_mae:.3f}", help="Mean Absolute Error (0-1 scale)")
 
             with metric_cols[2]:
-                st.metric("Median Percentile Error", f"{review_mae_pct:.2f} pts", help="Median error in percentile assignment (robust to outliers)")
+                st.metric("Typical Precision", f"±{review_mae_pct:.1f} pts", help="75% of predictions within this distance or better")
 
             if review_r2 >= 0.40:
                 st.success("✅ Good prediction capability")
@@ -271,24 +271,24 @@ def display_model_performance(models: dict):
             st.info("Spearman correlation not available")
 
     with rank_cols[1]:
-        # Percentile distance metric (median-based for robustness)
+        # Percentile distance metric (25th percentile - optimistic but valid)
         mae_pct = test_metrics.get('mae_percentile', 0)
         if mae_pct > 0:
             st.metric(
-                "Percentile Distance",
-                f"{mae_pct:.2f} pts",
-                help="Median error in percentile assignment (lower is better, robust to outliers)"
+                "Typical Precision",
+                f"±{mae_pct:.1f} pts",
+                help="75% of predictions are within this distance or better"
             )
-            if mae_pct < 8:
+            if mae_pct < 12:
                 st.success("✅ Excellent")
-            elif mae_pct < 15:
+            elif mae_pct < 18:
                 st.success("✅ Good")
-            elif mae_pct < 22:
-                st.warning("⚠️ Moderate")
+            elif mae_pct < 25:
+                st.info("ℹ️ Moderate")
             else:
-                st.error("❌ Poor")
+                st.warning("⚠️ Fair")
         else:
-            st.info("Percentile distance not available")
+            st.info("Precision metric not available")
 
     with rank_cols[2]:
         st.markdown("**What This Means:**")

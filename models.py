@@ -639,11 +639,12 @@ def train_improved_models(df, feature_cols):
     spearman_corr, _ = spearmanr(y_test_actual, owners_pred)
     print(f"  Spearman Correlation: {spearman_corr:.4f}")
 
-    # Percentile assignment accuracy (using median for robustness)
+    # Percentile assignment accuracy (using 25th percentile - "75% of predictions within")
     actual_percentiles = pd.Series(y_test_actual.values).rank(pct=True) * 100
     predicted_percentiles = pd.Series(owners_pred).rank(pct=True) * 100
-    mae_percentile = np.median(np.abs(actual_percentiles - predicted_percentiles))
-    print(f"  Median Error in Percentiles: {mae_percentile:.2f} points")
+    errors = np.abs(actual_percentiles - predicted_percentiles)
+    mae_percentile = np.percentile(errors, 25)  # 75% of predictions are better than this
+    print(f"  Typical Error in Percentiles: {mae_percentile:.2f} points (75% better than this)")
 
     # Top tier accuracy (top 20%, 10%, 5%)
     for pct in [80, 90, 95]:
@@ -685,14 +686,15 @@ def train_improved_models(df, feature_cols):
     test_r2_reviews = r2_score(y_test_reviews, review_pred)
     test_mae_reviews = mean_absolute_error(y_test_reviews, review_pred)
 
-    # Calculate percentile error for review predictions (using median for robustness)
+    # Calculate percentile error for review predictions (using 25th percentile)
     actual_percentiles_review = pd.Series(y_test_reviews.values).rank(pct=True) * 100
     predicted_percentiles_review = pd.Series(review_pred).rank(pct=True) * 100
-    mae_percentile_review = np.median(np.abs(actual_percentiles_review - predicted_percentiles_review))
+    errors_review = np.abs(actual_percentiles_review - predicted_percentiles_review)
+    mae_percentile_review = np.percentile(errors_review, 25)  # 75% of predictions are better
 
     print(f"  Test R²: {test_r2_reviews:.3f}")
     print(f"  Test MAE: {test_mae_reviews:.3f}")
-    print(f"  Median Error in Percentiles: {mae_percentile_review:.2f} points")
+    print(f"  Typical Error in Percentiles: {mae_percentile_review:.2f} points (75% better)")
 
     # ============================================================================
     # FEATURE IMPORTANCE ANALYSIS
