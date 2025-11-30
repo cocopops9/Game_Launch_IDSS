@@ -44,12 +44,11 @@ def data_analysis_page():
     st.markdown("---")
     
     # Tabs for different analyses
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab1, tab2, tab3, tab4 = st.tabs([
         "📊 Feature Importance",
         "🔗 Correlations",
         "📉 Model Performance",
-        "🎯 Market Insights",
-        "🎮 Spearman by Genre"
+        "🎯 Market Insights"
     ])
 
     with tab1:
@@ -63,10 +62,6 @@ def data_analysis_page():
 
     with tab4:
         display_market_insights(df)
-
-    with tab5:
-        from check_spearman_by_genre import check_spearman_by_genre
-        check_spearman_by_genre()
 
 
 def display_feature_importance(models: dict, data_analysis: dict):
@@ -252,7 +247,7 @@ def display_model_performance(models: dict):
     which is critical for the percentile-based positioning used throughout this system.
     """)
 
-    rank_cols = st.columns(3)
+    rank_cols = st.columns(2)
 
     with rank_cols[0]:
         # Use the intelligent ranking model's Spearman if available
@@ -280,29 +275,10 @@ def display_model_performance(models: dict):
             st.info("Spearman correlation not available - retrain models to see this metric")
 
     with rank_cols[1]:
-        mae_pct = test_metrics.get('mae_percentile', 0)
-        if mae_pct > 0:
-            st.metric(
-                "MAE in Percentiles",
-                f"{mae_pct:.2f} points",
-                help="Average error in percentile assignment"
-            )
-            if mae_pct < 5:
-                st.success("✅ Excellent percentile accuracy")
-            elif mae_pct < 10:
-                st.success("✅ Good percentile accuracy")
-            elif mae_pct < 15:
-                st.warning("⚠️ Moderate percentile accuracy")
-            else:
-                st.error("❌ Poor percentile accuracy")
-        else:
-            st.info("MAE percentile not available - retrain models to see this metric")
-
-    with rank_cols[2]:
         st.markdown("**What This Means:**")
         if spearman >= 0.60:
             st.markdown("""
-            Even though absolute predictions have moderate R² (~0.36), the **ranking correlation is good** (Spearman > 0.60).
+            The ranking correlation is good (Spearman > 0.60).
 
             This means:
             - ✅ Percentile rankings are reliable
