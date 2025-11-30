@@ -255,12 +255,18 @@ def display_model_performance(models: dict):
     rank_cols = st.columns(3)
 
     with rank_cols[0]:
-        spearman = test_metrics.get('spearman_correlation', 0)
+        # Use the intelligent ranking model's Spearman if available
+        spearman = 0
+        if 'intelligence_engine' in st.session_state and st.session_state.intelligence_engine:
+            spearman = st.session_state.intelligence_engine.random_spearman
+        else:
+            spearman = test_metrics.get('spearman_correlation', 0)
+
         if spearman > 0:
             st.metric(
-                "Spearman Correlation",
+                "Ranking Spearman Correlation",
                 f"{spearman:.4f}",
-                help="How well the model ranks games (1.0 = perfect ranking, 0 = random)"
+                help="How well the ranking model orders games (1.0 = perfect ranking, 0 = random)"
             )
             if spearman >= 0.80:
                 st.success("✅ Excellent ranking accuracy")
