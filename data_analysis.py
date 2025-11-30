@@ -207,16 +207,13 @@ def display_model_performance(models: dict):
         review_mae_pct = test_metrics.get('review_mae_percentile', 0)
 
         if review_r2 > 0:
-            metric_cols = st.columns(3)
+            metric_cols = st.columns(2)
 
             with metric_cols[0]:
                 st.metric("R² Score", f"{review_r2:.3f}", help="Proportion of variance explained")
 
             with metric_cols[1]:
                 st.metric("MAE", f"{review_mae:.3f}", help="Mean Absolute Error (0-1 scale)")
-
-            with metric_cols[2]:
-                st.metric("Typical Precision", f"±{review_mae_pct:.1f} pts", help="75% of predictions within this distance or better")
 
             if review_r2 >= 0.40:
                 st.success("✅ Good prediction capability")
