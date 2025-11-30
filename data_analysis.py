@@ -69,51 +69,29 @@ def display_feature_importance(models: dict, data_analysis: dict):
     
     st.markdown("### Feature Importance Analysis")
     st.markdown("Which features most influence the model's predictions?")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### Owners Prediction")
-        if 'feature_importance_owners' in data_analysis and not data_analysis['feature_importance_owners'].empty:
-            importance_df = data_analysis['feature_importance_owners'].head(15)
-            
-            fig = px.bar(
-                importance_df,
-                x='importance',
-                y='feature',
-                orientation='h',
-                title='Top 15 Features for Owners Prediction',
-                labels={'importance': 'Importance Score', 'feature': 'Feature'}
-            )
-            fig.update_layout(yaxis={'categoryorder': 'total ascending'}, height=500)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Feature importance data not available. Train models first.")
-    
-    with col2:
-        st.markdown("#### Review Ratio Prediction")
-        if 'feature_importance_reviews' in data_analysis and not data_analysis['feature_importance_reviews'].empty:
-            importance_df = data_analysis['feature_importance_reviews'].head(15)
-            
-            fig = px.bar(
-                importance_df,
-                x='importance',
-                y='feature',
-                orientation='h',
-                title='Top 15 Features for Review Prediction',
-                labels={'importance': 'Importance Score', 'feature': 'Feature'},
-                color_discrete_sequence=['#ff7f0e']
-            )
-            fig.update_layout(yaxis={'categoryorder': 'total ascending'}, height=500)
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Feature importance data not available. Train models first.")
-    
+
+    st.markdown("#### Owners Prediction")
+    if 'feature_importance_owners' in data_analysis and not data_analysis['feature_importance_owners'].empty:
+        importance_df = data_analysis['feature_importance_owners'].head(15)
+
+        fig = px.bar(
+            importance_df,
+            x='importance',
+            y='feature',
+            orientation='h',
+            title='Top 15 Features for Owners Prediction',
+            labels={'importance': 'Importance Score', 'feature': 'Feature'}
+        )
+        fig.update_layout(yaxis={'categoryorder': 'total ascending'}, height=500)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("Feature importance data not available. Train models first.")
+
     # Interpretation
     st.markdown("#### 📖 Interpreting Feature Importance")
     st.markdown("""
     Feature importance scores indicate how much each feature contributes to the model's predictions:
-    
+
     - **Higher scores** = Feature has more influence on predictions
     - **release_year** being top indicates newer games tend to perform differently
     - **tag_free_to_play** shows the F2P model has significant impact on reach
@@ -263,7 +241,7 @@ def display_model_performance(models: dict):
     which is critical for the percentile-based positioning used throughout this system.
     """)
 
-    rank_cols = st.columns(2)
+    rank_cols = st.columns(3)
 
     with rank_cols[0]:
         # Use the intelligent ranking model's Spearman if available
@@ -293,6 +271,26 @@ def display_model_performance(models: dict):
             st.info("Spearman correlation not available")
 
     with rank_cols[1]:
+        # Percentile distance metric
+        mae_pct = test_metrics.get('mae_percentile', 0)
+        if mae_pct > 0:
+            st.metric(
+                "Percentile Distance",
+                f"{mae_pct:.2f} pts",
+                help="Average error in percentile assignment (lower is better)"
+            )
+            if mae_pct < 10:
+                st.success("✅ Excellent")
+            elif mae_pct < 20:
+                st.success("✅ Good")
+            elif mae_pct < 30:
+                st.warning("⚠️ Moderate")
+            else:
+                st.error("❌ Poor")
+        else:
+            st.info("MAE percentile not available")
+
+    with rank_cols[2]:
         st.markdown("**What This Means:**")
         if spearman >= 0.60:
             st.markdown(f"""
@@ -301,6 +299,12 @@ def display_model_performance(models: dict):
             - ✅ Percentile rankings reliable
             - ✅ Identifies better games correctly
             - ✅ Positioning insights trustworthy
+            """)
+        elif mae_pct > 0:
+            st.markdown(f"""
+            **±{mae_pct:.1f} percentile error**
+
+            Average distance from true percentile position
             """)
         else:
             st.markdown("Metrics will appear after training.")
