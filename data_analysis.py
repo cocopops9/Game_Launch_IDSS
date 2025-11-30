@@ -247,7 +247,7 @@ def display_model_performance(models: dict):
     which is critical for the percentile-based positioning used throughout this system.
     """)
 
-    rank_cols = st.columns(2)
+    rank_cols = st.columns(3)
 
     with rank_cols[0]:
         # Use the intelligent ranking model's Spearman if available
@@ -258,35 +258,52 @@ def display_model_performance(models: dict):
             spearman = test_metrics.get('spearman_correlation', 0)
 
         if spearman > 0:
+            spearman_pct = spearman * 100
             st.metric(
-                "Ranking Spearman Correlation",
-                f"{spearman:.4f}",
-                help="How well the ranking model orders games (1.0 = perfect ranking, 0 = random)"
+                "Ranking Accuracy",
+                f"{spearman_pct:.1f}%",
+                delta=f"Spearman: {spearman:.4f}",
+                help="Percentage of ranking order correctly predicted (100% = perfect, 0% = random)"
             )
             if spearman >= 0.80:
-                st.success("✅ Excellent ranking accuracy")
+                st.success("✅ Excellent")
             elif spearman >= 0.60:
-                st.success("✅ Good ranking accuracy")
+                st.success("✅ Good")
             elif spearman >= 0.40:
-                st.warning("⚠️ Moderate ranking accuracy")
+                st.warning("⚠️ Moderate")
             else:
-                st.error("❌ Poor ranking accuracy")
+                st.error("❌ Poor")
         else:
-            st.info("Spearman correlation not available - retrain models to see this metric")
+            st.info("Spearman correlation not available")
 
     with rank_cols[1]:
         st.markdown("**What This Means:**")
         if spearman >= 0.60:
-            st.markdown("""
-            The ranking correlation is good (Spearman > 0.60).
+            st.markdown(f"""
+            **{spearman*100:.1f}% ranking accuracy**
 
-            This means:
-            - ✅ Percentile rankings are reliable
-            - ✅ The system correctly identifies which games perform better
-            - ✅ Relative positioning insights are trustworthy
+            - ✅ Percentile rankings reliable
+            - ✅ Identifies better games correctly
+            - ✅ Positioning insights trustworthy
             """)
         else:
-            st.markdown("Ranking metrics will appear here after model training completes.")
+            st.markdown("Metrics will appear after training.")
+
+    with rank_cols[2]:
+        # Show review model performance if available
+        review_r2 = test_metrics.get('review_r2', 0)
+        if review_r2 > 0:
+            st.metric(
+                "Review Model R²",
+                f"{review_r2:.3f}",
+                help="How well the model predicts review ratios (1.0 = perfect, 0 = baseline)"
+            )
+            if review_r2 >= 0.50:
+                st.success("✅ Good")
+            elif review_r2 >= 0.30:
+                st.info("ℹ️ Moderate")
+            else:
+                st.warning("⚠️ Limited")
 
     st.markdown("---")
     

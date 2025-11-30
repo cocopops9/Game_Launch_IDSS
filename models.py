@@ -655,6 +655,41 @@ def train_improved_models(df, feature_cols):
         print(f"  Top {100-pct}% Classification Accuracy: {accuracy:.2%}")
 
     # ============================================================================
+    # MODEL 2: REVIEW RATIO PREDICTION (XGBoost)
+    # ============================================================================
+
+    print("\n📈 Training Review Ratio Model (XGBoost)...")
+
+    # Prepare review ratio targets
+    y_train_reviews = y_reviews[X_train.index]
+    y_test_reviews = y_reviews[X_test.index]
+
+    # Train review model
+    review_model = XGBRegressor(
+        n_estimators=100,
+        learning_rate=0.05,
+        max_depth=5,
+        min_child_weight=5,
+        subsample=0.8,
+        colsample_bytree=0.8,
+        reg_alpha=0.2,
+        reg_lambda=1.5,
+        random_state=42,
+        n_jobs=-1
+    )
+
+    review_model.fit(X_train, y_train_reviews)
+    review_pred = review_model.predict(X_test)
+
+    # Evaluate review model
+    from sklearn.metrics import r2_score, mean_absolute_error
+    test_r2_reviews = r2_score(y_test_reviews, review_pred)
+    test_mae_reviews = mean_absolute_error(y_test_reviews, review_pred)
+
+    print(f"  Test R²: {test_r2_reviews:.3f}")
+    print(f"  Test MAE: {test_mae_reviews:.3f}")
+
+    # ============================================================================
     # FEATURE IMPORTANCE ANALYSIS
     # ============================================================================
 
@@ -677,6 +712,7 @@ def train_improved_models(df, feature_cols):
     # Return all model artifacts
     return {
         'owners_model': owners_model,
+        'review_model': review_model,
         'feature_cols': feature_cols_clean,
         'owner_importance': owner_importance,
         'X_train': X_train,
@@ -685,14 +721,20 @@ def train_improved_models(df, feature_cols):
         'y_test_log': y_test_log,
         'y_train_actual': y_train_actual,
         'y_test_actual': y_test_actual,
+        'y_train_reviews': y_train_reviews,
+        'y_test_reviews': y_test_reviews,
         'owners_pred_log': owners_pred_log,
         'owners_pred': owners_pred,
+        'review_pred': review_pred,
         'cv_scores_owners': cv_scores,
         'test_metrics': {
             'owners_r2': test_r2_owners,
             'owners_mae': test_mae_owners,
             'owners_rmse': test_rmse_owners,
             'owners_model_name': 'XGBoost',
+            'review_r2': test_r2_reviews,
+            'review_mae': test_mae_reviews,
+            'review_model_name': 'XGBoost',
             # Ranking metrics for percentile accuracy
             'spearman_correlation': spearman_corr,
             'mae_percentile': mae_percentile
