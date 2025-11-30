@@ -284,11 +284,10 @@ def display_analysis_results(analysis: dict, features: dict):
                 'low': '🟢'
             }
             icon = level_colors.get(risk['level'], '⚪')
-            
+
             with st.expander(f"{icon} **{risk['title']}** ({risk['level'].title()} Risk)"):
-                st.markdown(f"**Category:** {risk['category']}")
                 st.markdown(risk['description'])
-                st.markdown(f"**Recommendation:** {risk['recommendation']}")
+                st.markdown(f"**💡 Recommendation:** {risk['recommendation']}")
     else:
         st.success("✅ No significant risks identified with this configuration.")
     
