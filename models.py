@@ -682,7 +682,6 @@ def train_improved_models(df, feature_cols):
     review_pred = review_model.predict(X_test)
 
     # Evaluate review model
-    from sklearn.metrics import r2_score, mean_absolute_error
     test_r2_reviews = r2_score(y_test_reviews, review_pred)
     test_mae_reviews = mean_absolute_error(y_test_reviews, review_pred)
 
