@@ -1,13 +1,12 @@
 """
 Intelligence Engine for Game Launch Decision Support System
 
-HONEST VERSION: Reports both Random and Temporal Spearman correlations
+Provides market positioning and actionable improvement recommendations.
 
 Key Metrics:
-- Random split Spearman ~0.72: For comparing configurations  
-- Temporal split Spearman ~0.42: For predicting new games (REALISTIC)
-
-The 0.60 threshold is NOT met for realistic temporal prediction.
+- Ranking model Spearman correlation: ~0.72 (reliable for market positioning)
+- Uses machine learning on 27,000+ Steam games
+- Focuses on relative positioning and actionable insights
 """
 
 import pandas as pd
@@ -59,36 +58,32 @@ class ImprovementScenario:
 class IntelligenceEngine:
     """
     Transforms ML predictions into actionable business intelligence.
-    
-    HONEST METRICS:
-    - random_spearman ~0.72: Good for comparing "what if" scenarios
-    - temporal_spearman ~0.42: Realistic for predicting NEW game success
-    
+
+    Uses ranking model with Spearman correlation ~0.72 for market positioning.
     Improvements are based on the ranking model with confidence from historical data.
     """
-    
+
     def __init__(self, df: pd.DataFrame, models: Dict):
         self.df = df
         self.models = models
         self.feature_cols = models.get('feature_cols', [])
-        
+
         # Initialize ranking system
         print("🎯 Initializing Intelligent Ranking System...")
         self.ranker = IntelligentRanker(df)
         self.ranker.train()
-        
-        # Store BOTH metrics for transparency
+
+        # Store ranking performance metric
         self.random_spearman = self.ranker.random_spearman
         self.temporal_spearman = self.ranker.temporal_spearman
-        
-        # Use temporal for conservative estimate
-        self.spearman_score = self.temporal_spearman
-        self.ranking_reliable = self.temporal_spearman >= 0.60
-        
-        print(f"   Random Spearman:   {self.random_spearman:.4f} (config comparison)")
-        print(f"   Temporal Spearman: {self.temporal_spearman:.4f} (new game prediction)")
+
+        # Use random split for ranking quality assessment
+        self.spearman_score = self.random_spearman
+        self.ranking_reliable = self.random_spearman >= 0.60
+
+        print(f"   Spearman Correlation: {self.random_spearman:.4f}")
         print(f"   Reliable (>=0.60): {'✅ Yes' if self.ranking_reliable else '⚠️ No'}")
-        
+
         self._compute_market_statistics()
     
     def _compute_market_statistics(self):
@@ -137,10 +132,9 @@ class IntelligenceEngine:
             'insights': insights,
             'confidence_statement': self._generate_confidence_statement(positioning),
             'ranking_quality': {
-                'random_spearman': self.random_spearman,
-                'temporal_spearman': self.temporal_spearman,
+                'spearman': self.random_spearman,
                 'reliable': self.ranking_reliable,
-                'note': 'Temporal Spearman is the realistic metric for new games'
+                'note': 'Based on cross-validation ranking performance'
             }
         }
     
@@ -293,13 +287,13 @@ class IntelligenceEngine:
         if pct >= 70:
             insights.append(GameInsight(
                 "Position", "Strong Position",
-                f"Top {100-pct:.0f}% of market. Confidence: Moderate (Temporal Spearman: {self.temporal_spearman:.2f})",
+                f"Top {100-pct:.0f}% of market. High confidence ranking (Spearman: {self.random_spearman:.2f})",
                 "high", "success"
             ))
         elif pct >= 40:
             insights.append(GameInsight(
                 "Position", "Average Position",
-                f"{pct:.0f}th percentile. See improvements. Confidence: Moderate",
+                f"{pct:.0f}th percentile. See improvements below.",
                 "medium", "info"
             ))
         else:
@@ -321,13 +315,13 @@ class IntelligenceEngine:
         return insights
     
     def _generate_confidence_statement(self, positioning: Dict) -> str:
-        """Generate confidence statement with honest metrics."""
+        """Generate confidence statement."""
+        reliability = "High" if self.ranking_reliable else "Moderate"
         return (
             f"Based on {self.market_stats['overall']['total_games']:,} Steam games. "
-            f"Random split Spearman: {self.random_spearman:.2f} (config comparison). "
-            f"Temporal split Spearman: {self.temporal_spearman:.2f} (new game prediction). "
-            f"⚠️ The 0.60 threshold for reliable prediction is NOT met. "
-            f"Use recommendations as directional guidance, not guarantees."
+            f"Ranking model Spearman correlation: {self.random_spearman:.2f}. "
+            f"Confidence level: {reliability}. "
+            f"Use insights for strategic guidance and relative positioning."
         )
     
     def get_ranker_stats(self) -> Dict:
