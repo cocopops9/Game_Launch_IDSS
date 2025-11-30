@@ -224,18 +224,34 @@ def display_model_performance(models: dict):
     with col2:
         st.markdown("#### ⭐ Review Ratio Prediction Model")
 
-        r2 = test_metrics.get('reviews_r2', 0)
-        mae = test_metrics.get('reviews_mae', 0)
-        rmse = test_metrics.get('reviews_rmse', 0)
+        review_r2 = test_metrics.get('review_r2', 0)
+        review_mae = test_metrics.get('review_mae', 0)
+        review_mae_pct = test_metrics.get('review_mae_percentile', 0)
 
-        st.metric("R² Score", f"{r2:.3f}", help="Proportion of variance explained")
-        st.metric("MAE", f"{mae:.3f}", help="Mean Absolute Error (0-1 scale)")
-        st.metric("RMSE", f"{rmse:.3f}", help="Root Mean Square Error")
+        if review_r2 > 0:
+            metric_cols = st.columns(3)
 
-        st.info("""
-        **Note:** Review ratio is inherently difficult to predict from pre-launch features
-        because it depends heavily on actual game quality, which cannot be measured before release.
-        The model provides directional guidance, not precise predictions.
+            with metric_cols[0]:
+                st.metric("R² Score", f"{review_r2:.3f}", help="Proportion of variance explained")
+
+            with metric_cols[1]:
+                st.metric("MAE", f"{review_mae:.3f}", help="Mean Absolute Error (0-1 scale)")
+
+            with metric_cols[2]:
+                st.metric("MAE Percentile", f"{review_mae_pct:.2f} pts", help="Average error in percentile assignment")
+
+            if review_r2 >= 0.40:
+                st.success("✅ Good prediction capability")
+            elif review_r2 >= 0.20:
+                st.info("ℹ️ Moderate prediction capability")
+            else:
+                st.warning("⚠️ Limited prediction capability")
+        else:
+            st.info("Review model metrics will appear after training")
+
+        st.caption("""
+        **Note:** Review ratio depends on game quality which cannot be measured pre-launch.
+        The model provides directional guidance based on features only.
         """)
 
     st.markdown("---")
@@ -247,7 +263,7 @@ def display_model_performance(models: dict):
     which is critical for the percentile-based positioning used throughout this system.
     """)
 
-    rank_cols = st.columns(3)
+    rank_cols = st.columns(2)
 
     with rank_cols[0]:
         # Use the intelligent ranking model's Spearman if available
@@ -288,22 +304,6 @@ def display_model_performance(models: dict):
             """)
         else:
             st.markdown("Metrics will appear after training.")
-
-    with rank_cols[2]:
-        # Show review model performance if available
-        review_r2 = test_metrics.get('review_r2', 0)
-        if review_r2 > 0:
-            st.metric(
-                "Review Model R²",
-                f"{review_r2:.3f}",
-                help="How well the model predicts review ratios (1.0 = perfect, 0 = baseline)"
-            )
-            if review_r2 >= 0.50:
-                st.success("✅ Good")
-            elif review_r2 >= 0.30:
-                st.info("ℹ️ Moderate")
-            else:
-                st.warning("⚠️ Limited")
 
     st.markdown("---")
     

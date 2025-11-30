@@ -685,8 +685,14 @@ def train_improved_models(df, feature_cols):
     test_r2_reviews = r2_score(y_test_reviews, review_pred)
     test_mae_reviews = mean_absolute_error(y_test_reviews, review_pred)
 
+    # Calculate percentile error for review predictions
+    actual_percentiles_review = pd.Series(y_test_reviews.values).rank(pct=True) * 100
+    predicted_percentiles_review = pd.Series(review_pred).rank(pct=True) * 100
+    mae_percentile_review = np.mean(np.abs(actual_percentiles_review - predicted_percentiles_review))
+
     print(f"  Test R²: {test_r2_reviews:.3f}")
     print(f"  Test MAE: {test_mae_reviews:.3f}")
+    print(f"  MAE in Percentiles: {mae_percentile_review:.2f} points")
 
     # ============================================================================
     # FEATURE IMPORTANCE ANALYSIS
@@ -733,6 +739,7 @@ def train_improved_models(df, feature_cols):
             'owners_model_name': 'XGBoost',
             'review_r2': test_r2_reviews,
             'review_mae': test_mae_reviews,
+            'review_mae_percentile': mae_percentile_review,
             'review_model_name': 'XGBoost',
             # Ranking metrics for percentile accuracy
             'spearman_correlation': spearman_corr,
