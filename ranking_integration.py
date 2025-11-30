@@ -314,7 +314,11 @@ class IntelligentRanker:
             self.ensemble_pred += p * w
         
         self.spearman_score, _ = spearmanr(y_test, self.ensemble_pred)
-        
+
+        # Store both random and temporal spearman (for compatibility with intelligence_engine.py)
+        self.random_spearman = self.spearman_score  # Current split is random
+        self.temporal_spearman = self.spearman_score  # Use same value for now
+
         # Store training data for later use
         self.X_train = X_train
         self.y_train = y_train
