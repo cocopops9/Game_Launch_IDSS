@@ -639,11 +639,11 @@ def train_improved_models(df, feature_cols):
     spearman_corr, _ = spearmanr(y_test_actual, owners_pred)
     print(f"  Spearman Correlation: {spearman_corr:.4f}")
 
-    # Percentile assignment accuracy
+    # Percentile assignment accuracy (using median for robustness)
     actual_percentiles = pd.Series(y_test_actual.values).rank(pct=True) * 100
     predicted_percentiles = pd.Series(owners_pred).rank(pct=True) * 100
-    mae_percentile = np.mean(np.abs(actual_percentiles - predicted_percentiles))
-    print(f"  MAE in Percentiles: {mae_percentile:.2f} points")
+    mae_percentile = np.median(np.abs(actual_percentiles - predicted_percentiles))
+    print(f"  Median Error in Percentiles: {mae_percentile:.2f} points")
 
     # Top tier accuracy (top 20%, 10%, 5%)
     for pct in [80, 90, 95]:
@@ -685,14 +685,14 @@ def train_improved_models(df, feature_cols):
     test_r2_reviews = r2_score(y_test_reviews, review_pred)
     test_mae_reviews = mean_absolute_error(y_test_reviews, review_pred)
 
-    # Calculate percentile error for review predictions
+    # Calculate percentile error for review predictions (using median for robustness)
     actual_percentiles_review = pd.Series(y_test_reviews.values).rank(pct=True) * 100
     predicted_percentiles_review = pd.Series(review_pred).rank(pct=True) * 100
-    mae_percentile_review = np.mean(np.abs(actual_percentiles_review - predicted_percentiles_review))
+    mae_percentile_review = np.median(np.abs(actual_percentiles_review - predicted_percentiles_review))
 
     print(f"  Test R²: {test_r2_reviews:.3f}")
     print(f"  Test MAE: {test_mae_reviews:.3f}")
-    print(f"  MAE in Percentiles: {mae_percentile_review:.2f} points")
+    print(f"  Median Error in Percentiles: {mae_percentile_review:.2f} points")
 
     # ============================================================================
     # FEATURE IMPORTANCE ANALYSIS
