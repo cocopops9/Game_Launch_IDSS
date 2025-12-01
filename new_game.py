@@ -116,21 +116,51 @@ def new_game_page():
     
     # Steam Features
     st.markdown("#### Steam Features")
-    feature_cols = st.columns(4)
-    
+
     categories = []
-    with feature_cols[0]:
+
+    # First row - Core Steam features
+    feature_cols_1 = st.columns(4)
+    with feature_cols_1[0]:
         if st.checkbox("Steam Achievements", value=achievements > 0):
             categories.append("Steam Achievements")
-    with feature_cols[1]:
+    with feature_cols_1[1]:
         if st.checkbox("Steam Trading Cards"):
             categories.append("Steam Trading Cards")
-    with feature_cols[2]:
+    with feature_cols_1[2]:
         if st.checkbox("Steam Cloud"):
             categories.append("Steam Cloud")
-    with feature_cols[3]:
+    with feature_cols_1[3]:
+        if st.checkbox("Steam Workshop"):
+            categories.append("Steam Workshop")
+
+    # Second row - Social and controller features
+    feature_cols_2 = st.columns(4)
+    with feature_cols_2[0]:
         if st.checkbox("Controller Support"):
             categories.append("Full controller support")
+    with feature_cols_2[1]:
+        if st.checkbox("Co-op"):
+            categories.append("Co-op")
+    with feature_cols_2[2]:
+        if st.checkbox("Online Co-op"):
+            categories.append("Online Co-op")
+    with feature_cols_2[3]:
+        if st.checkbox("Shared/Split Screen"):
+            categories.append("Shared/Split Screen")
+
+    # Third row - Additional features
+    feature_cols_3 = st.columns(4)
+    with feature_cols_3[0]:
+        if st.checkbox("Steam Leaderboards"):
+            categories.append("Steam Leaderboards")
+    with feature_cols_3[1]:
+        if st.checkbox("VR Support"):
+            categories.append("VR Support")
+    with feature_cols_3[2]:
+        pass  # Empty column for alignment
+    with feature_cols_3[3]:
+        pass  # Empty column for alignment
     
     # Build features dict
     features = {
