@@ -93,10 +93,10 @@ Highlights potential challenges:
 ### 5. Review Prediction
 
 Predicts expected positive review ratio using XGBoost regression:
-- **R² Score**: ~0.40-0.50 (moderate prediction capability)
-- **Mean Absolute Error**: ~0.08-0.12 on 0-1 scale
+- **R² Score**: 0.109 (limited prediction capability)
+- **Mean Absolute Error**: 0.197 on 0-1 scale
 
-**Note:** Review quality depends on game execution, which cannot be measured pre-launch. Use as directional guidance only.
+**Note:** Review quality depends on game execution, which cannot be measured pre-launch. The model has very limited predictive power. Use as rough directional guidance only.
 
 ## 📁 Project Structure
 
@@ -242,8 +242,8 @@ Readiness Score: 68/100
 |----------------|---------|-------|
 | Ranking System | Spearman Correlation | 0.72 |
 | Ranking System | Percentile Precision | ±8-10 pts (75% within) |
-| Review Prediction | R² Score | 0.40-0.50 |
-| Review Prediction | MAE | 0.08-0.12 |
+| Review Prediction | R² Score | 0.109 |
+| Review Prediction | MAE | 0.197 |
 
 ## 📝 License
 
