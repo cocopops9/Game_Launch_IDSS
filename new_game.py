@@ -361,10 +361,9 @@ def create_percentile_gauge(percentile: float) -> go.Figure:
         color = "#dc3545"  # Red
     
     fig = go.Figure(go.Indicator(
-        mode="gauge+number+delta",
+        mode="gauge+number",
         value=percentile,
         title={'text': "Market Percentile", 'font': {'size': 20}},
-        delta={'reference': 50, 'increasing': {'color': "green"}, 'decreasing': {'color': "red"}},
         gauge={
             'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "darkblue"},
             'bar': {'color': color},
