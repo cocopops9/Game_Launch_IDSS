@@ -77,7 +77,7 @@ def train_models(df, _loader):
 
     # Save report to file
     report_filename = f"training_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
-    with open(report_filename, 'w') as f:
+    with open(report_filename, 'w', errors="ignore") as f:
         f.write(report)
 
     print(f"✅ Training report saved to: {report_filename}")
@@ -1570,7 +1570,7 @@ def main():
 
     # Save report to file
     report_filename = f"training_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
-    with open(report_filename, 'w') as f:
+    with open(report_filename, 'w',errors="ignore") as f:
         f.write(report)
 
     print(f"\n✅ Training report saved to: {report_filename}")

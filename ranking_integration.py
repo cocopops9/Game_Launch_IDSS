@@ -108,11 +108,11 @@ class IntelligentRanker:
         X_train, X_test = X.loc[train_idx], X.loc[test_idx]
         y_train, y_test = y.loc[train_idx], y.loc[test_idx]
         
-        # Train ensemble
+        # Train XGBoost Rank model
         self._train_ensemble(X_train, y_train, X_test, y_test)
-        
+
         # Store reference data
-        self.reference_ranks = self.ensemble_pred
+        self.reference_ranks = self.ranking_models['xgb_rank'].predict(X_test)
         self.reference_owners = y_test.values
         
         # Validate improvements
@@ -255,11 +255,8 @@ class IntelligentRanker:
         return df, feature_cols
     
     def _train_ensemble(self, X_train, y_train, X_test, y_test):
-        """Train ensemble of ranking models."""
-        predictions = []
-        weights = []
-        
-        # Model 1: XGBoost rank target
+        """Train XGBoost Rank model."""
+        # Model: XGBoost rank target
         if HAS_XGB:
             y_train_rank = rankdata(y_train) / len(y_train)
             m1 = XGBRegressor(n_estimators=150, learning_rate=0.08, max_depth=6,
@@ -267,57 +264,12 @@ class IntelligentRanker:
                               random_state=42, n_jobs=-1)
             m1.fit(X_train, y_train_rank)
             p1 = m1.predict(X_test)
-            sp1, _ = spearmanr(y_test, p1)
+            self.spearman_score, _ = spearmanr(y_test, p1)
             self.ranking_models['xgb_rank'] = m1
-            predictions.append(rankdata(p1))
-            weights.append(sp1)
-        
-        # Model 2: XGBoost log-owners
-        if HAS_XGB:
-            m2 = XGBRegressor(n_estimators=150, learning_rate=0.08, max_depth=6,
-                              min_child_weight=3, subsample=0.8, colsample_bytree=0.8,
-                              random_state=43, n_jobs=-1)
-            m2.fit(X_train, np.log1p(y_train))
-            p2 = np.expm1(m2.predict(X_test))
-            sp2, _ = spearmanr(y_test, p2)
-            self.ranking_models['xgb_log'] = m2
-            predictions.append(rankdata(p2))
-            weights.append(sp2)
-        
-        # Model 3: GBM rank target
-        m3 = GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, 
-                                       max_depth=5, random_state=44)
-        y_train_rank3 = rankdata(y_train) / len(y_train)
-        m3.fit(X_train, y_train_rank3)
-        p3 = m3.predict(X_test)
-        sp3, _ = spearmanr(y_test, p3)
-        self.ranking_models['gbm_rank'] = m3
-        predictions.append(rankdata(p3))
-        weights.append(sp3)
-        
-        # Model 4: RandomForest
-        m4 = RandomForestRegressor(n_estimators=100, max_depth=10, 
-                                   random_state=45, n_jobs=-1)
-        m4.fit(X_train, np.log1p(y_train))
-        p4 = np.expm1(m4.predict(X_test))
-        sp4, _ = spearmanr(y_test, p4)
-        self.ranking_models['rf_log'] = m4
-        predictions.append(rankdata(p4))
-        weights.append(sp4)
-        
-        # Ensemble
-        weights = np.array(weights) / sum(weights)
-        self.ensemble_weights = dict(zip(self.ranking_models.keys(), weights))
-        
-        self.ensemble_pred = np.zeros(len(X_test))
-        for p, w in zip(predictions, weights):
-            self.ensemble_pred += p * w
-        
-        self.spearman_score, _ = spearmanr(y_test, self.ensemble_pred)
 
         # Store both random and temporal spearman (for compatibility with intelligence_engine.py)
-        self.random_spearman = self.spearman_score  # Current split is random
-        self.temporal_spearman = self.spearman_score  # Use same value for now
+        self.random_spearman = self.spearman_score
+        self.temporal_spearman = self.spearman_score
 
         # Store training data for later use
         self.X_train = X_train
@@ -336,28 +288,31 @@ class IntelligentRanker:
             ('tag_multiplayer', 'Multiplayer audience'),
             ('tag_co_op', 'Co-op gameplay'),
         ]
-        
+
+        # Get predictions from XGBoost Rank model
+        model_pred = self.ranking_models['xgb_rank'].predict(X_test)
+
         for feature, name in improvements_to_check:
             if feature in self.feature_cols:
                 mask_without = X_test[feature] == 0
                 mask_with = X_test[feature] == 1
-                
+
                 if mask_without.sum() >= 50 and mask_with.sum() >= 50:
-                    ranks_without = self.ensemble_pred[mask_without.values]
-                    ranks_with = self.ensemble_pred[mask_with.values]
-                    
+                    ranks_without = model_pred[mask_without.values]
+                    ranks_with = model_pred[mask_with.values]
+
                     model_says_positive = np.mean(ranks_with) > np.mean(ranks_without)
-                    
+
                     actual_without = y_test[mask_without].median()
                     actual_with = y_test[mask_with].median()
                     actual_is_positive = actual_with > actual_without
-                    
+
                     # Calculate effect size
                     effect_pct = (np.mean(ranks_with) - np.mean(ranks_without)) / len(X_test) * 100
                     actual_lift = ((actual_with / actual_without) - 1) * 100 if actual_without > 0 else 0
-                    
+
                     confidence = 'High' if model_says_positive == actual_is_positive else 'Low'
-                    
+
                     self.validated_improvements[feature] = {
                         'name': name,
                         'effect_pct': effect_pct,
@@ -393,34 +348,10 @@ class IntelligentRanker:
         # Create feature vector
         X = pd.DataFrame([{col: features.get(col, 0) for col in self.feature_cols}])
         X = X.fillna(0).replace([np.inf, -np.inf], 0)
-        
-        # Ensemble prediction - combine different model types appropriately
-        # Models return different scales, so we need to normalize
-        predictions = []
-        
-        for name, model in self.ranking_models.items():
-            weight = self.ensemble_weights[name]
-            pred = model.predict(X)[0]
-            
-            # Normalize prediction based on model type
-            if 'rank' in name:
-                # Rank models output 0-1, scale to match reference range
-                scaled_pred = pred * len(self.reference_ranks)
-            else:
-                # Log models output log-owners, convert to rank-like scale
-                # Use training data to estimate percentile
-                owners_pred = np.expm1(pred) if 'log' in name else pred
-                # Convert to approximate rank
-                scaled_pred = np.searchsorted(
-                    np.sort(self.reference_owners), 
-                    owners_pred
-                )
-            
-            predictions.append((scaled_pred, weight))
-        
-        # Weighted combination
-        rank_score = sum(p * w for p, w in predictions)
-        
+
+        # XGBoost Rank prediction
+        rank_score = self.ranking_models['xgb_rank'].predict(X)[0]
+
         return rank_score
     
     def get_improvements(self, features, top_n=5):

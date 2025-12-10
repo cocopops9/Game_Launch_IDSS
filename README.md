@@ -29,9 +29,11 @@ The Game Launch IDSS helps game developers make informed decisions about their g
 
 ### Installation
 
+Its recommended to start off with a fresh virtual python 3.14 environment.
+
 ```bash
 # 1. Install dependencies
-pip install streamlit pandas numpy scikit-learn xgboost scipy
+pip install streamlit pandas numpy scikit-learn xgboost scipy seaborn plotly lightgbm
 
 # 2. Place steam.csv in the project folder
 
@@ -55,6 +57,7 @@ The system ranks your game configuration against all 27,075 Steam games using an
 - **RandomForest (log-owners)** - Ensemble prediction
 
 **Performance:**
+
 - Spearman Rank Correlation: **0.72**
 - This measures how accurately the system ranks games relative to each other
 - A correlation > 0.60 is considered reliable for decision support
@@ -71,6 +74,7 @@ SUGGESTED IMPROVEMENTS:
 ```
 
 **Confidence Levels** are based on historical impact analysis:
+
 - **High**: Validated by strong historical data (median lift > 100%)
 - **Medium**: Moderate historical evidence (median lift 30-100%)
 - **Low**: Weak or inconsistent historical evidence
@@ -78,6 +82,7 @@ SUGGESTED IMPROVEMENTS:
 ### 3. Success Factors
 
 Identifies your game's strengths:
+
 - **Readiness Score**: Overall assessment (0-100)
 - **Key Strengths**: Features that position your game favorably
 - **Impact Level**: Magnitude of each factor's contribution
@@ -85,6 +90,7 @@ Identifies your game's strengths:
 ### 4. Risk Assessment
 
 Highlights potential challenges:
+
 - Market saturation in your genre/category
 - Price positioning concerns
 - Platform limitations
@@ -93,6 +99,7 @@ Highlights potential challenges:
 ### 5. Review Prediction
 
 Predicts expected positive review ratio using XGBoost regression:
+
 - **R² Score**: 0.109 (limited prediction capability)
 - **Mean Absolute Error**: 0.197 on 0-1 scale
 
@@ -100,15 +107,15 @@ Predicts expected positive review ratio using XGBoost regression:
 
 ## 📁 Project Structure
 
-| File | Purpose |
-|------|---------|
-| `app.py` | Main Streamlit application entry point |
-| `models.py` | ML model training (ensemble ranking + review prediction) |
-| `ranking_integration.py` | Core ranking system and model integration |
-| `intelligence_engine.py` | Business intelligence analysis engine |
-| `new_game.py` | Interactive game configuration analyzer |
-| `data_analysis.py` | Model performance metrics and data exploration |
-| `steam.csv` | Steam games dataset (27,075 games) |
+| File                     | Purpose                                                  |
+| ------------------------ | -------------------------------------------------------- |
+| `app.py`                 | Main Streamlit application entry point                   |
+| `models.py`              | ML model training (ensemble ranking + review prediction) |
+| `ranking_integration.py` | Core ranking system and model integration                |
+| `intelligence_engine.py` | Business intelligence analysis engine                    |
+| `new_game.py`            | Interactive game configuration analyzer                  |
+| `data_analysis.py`       | Model performance metrics and data exploration           |
+| `steam.csv`              | Steam games dataset (27,075 games)                       |
 
 ## 🎮 How to Use
 
@@ -116,6 +123,7 @@ Predicts expected positive review ratio using XGBoost regression:
 
 1. **Navigate to "New Game Analysis"** tab
 2. **Configure your game:**
+
    - Set price ($0-60+)
    - Select platforms (Windows/Mac/Linux)
    - Choose genres (Action, RPG, Strategy, etc.)
@@ -124,6 +132,7 @@ Predicts expected positive review ratio using XGBoost regression:
    - Input developer/publisher stats
 
 3. **Review the analysis:**
+
    - Market percentile ranking
    - Tier classification (elite/strong/average/weak/struggling)
    - Success factors and readiness score
@@ -139,6 +148,7 @@ Predicts expected positive review ratio using XGBoost regression:
 
 1. **Navigate to "Data Analysis"** tab
 2. **Review model performance:**
+
    - Ranking accuracy (Spearman correlation: 0.72)
    - Percentile distance metric
    - Review prediction performance
@@ -238,12 +248,12 @@ Readiness Score: 68/100
 
 ## 📊 Model Performance Summary
 
-| Model Component | Metric | Value |
-|----------------|---------|-------|
-| Ranking System | Spearman Correlation | 0.72 |
-| Ranking System | Percentile Precision | ±8-10 pts (75% within) |
-| Review Prediction | R² Score | 0.109 |
-| Review Prediction | MAE | 0.197 |
+| Model Component   | Metric               | Value                  |
+| ----------------- | -------------------- | ---------------------- |
+| Ranking System    | Spearman Correlation | 0.72                   |
+| Ranking System    | Percentile Precision | ±8-10 pts (75% within) |
+| Review Prediction | R² Score             | 0.109                  |
+| Review Prediction | MAE                  | 0.197                  |
 
 ## 📝 License
 
