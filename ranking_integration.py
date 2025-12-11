@@ -151,107 +151,188 @@ class IntelligentRanker:
             return 10000
     
     def _engineer_features(self, df):
-        """Create features for ranking."""
+        """
+        Create features for ranking model.
+
+        TOTAL: ~87 features across 10 categories
+
+        Feature Categories:
+        1. Price Features (4)        - Pricing and monetization
+        2. Time/Age Features (4)     - Game age and release timing
+        3. Platform Features (4)     - OS support
+        4. Achievements (3)          - Achievement system
+        5. Age Rating (2)            - Content rating
+        6. Categories (12)           - Steam categories/features
+        7. Genres (12)               - Game genres
+        8. Tags (26)                 - SteamSpy tags
+        9. Developer (22)            - Developer reputation
+        10. Publisher (2)            - Publisher reputation
+
+        NOTE: NO POST-LAUNCH features (ratings, playtime) - only pre-launch!
+        """
         feature_cols = []
-        
-        # Price
+
+        # ============================================================================
+        # 1. PRICE FEATURES (4 features)
+        # ============================================================================
+        print("  [1/10] Price features...")
         df['price'] = pd.to_numeric(df['price'], errors='coerce').fillna(0)
         df['price_log'] = np.log1p(df['price'])
         df['is_free'] = (df['price'] == 0).astype(int)
-        df['price_tier'] = pd.cut(df['price'], 
+        df['price_tier'] = pd.cut(df['price'],
                                    bins=[-0.01, 0, 5, 10, 20, 40, 1000],
                                    labels=[0, 1, 2, 3, 4, 5]).astype(int)
         feature_cols.extend(['price', 'price_log', 'is_free', 'price_tier'])
-        
-        # Time
+
+        # ============================================================================
+        # 2. TIME/AGE FEATURES (4 features)
+        # ============================================================================
+        print("  [2/10] Time/age features...")
         if 'release_date' in df.columns:
             df['release_date'] = pd.to_datetime(df['release_date'], errors='coerce')
-            ref_date = pd.Timestamp('2017-05-01')
+            ref_date = pd.Timestamp('2017-05-01')  # Dataset collection date
             df['game_age_days'] = (ref_date - df['release_date']).dt.days.fillna(365).clip(0, 10000)
             df['game_age_log'] = np.log1p(df['game_age_days'])
             df['release_year'] = df['release_date'].dt.year.fillna(2015)
             df['release_month'] = df['release_date'].dt.month.fillna(6)
             feature_cols.extend(['game_age_days', 'game_age_log', 'release_year', 'release_month'])
-        
-        # Platforms
+
+        # ============================================================================
+        # 3. PLATFORM FEATURES (4 features)
+        # ============================================================================
+        print("  [3/10] Platform features...")
         if 'platforms' in df.columns:
             df['windows'] = df['platforms'].str.contains('windows', case=False, na=False).astype(int)
             df['mac'] = df['platforms'].str.contains('mac', case=False, na=False).astype(int)
             df['linux'] = df['platforms'].str.contains('linux', case=False, na=False).astype(int)
             df['platform_count'] = df['windows'] + df['mac'] + df['linux']
             feature_cols.extend(['windows', 'mac', 'linux', 'platform_count'])
-        
-        # Achievements
+
+        # ============================================================================
+        # 4. ACHIEVEMENTS FEATURES (3 features)
+        # ============================================================================
+        print("  [4/10] Achievements features...")
         if 'achievements' in df.columns:
             df['achievements'] = pd.to_numeric(df['achievements'], errors='coerce').fillna(0)
             df['has_achievements'] = (df['achievements'] > 0).astype(int)
             df['achievements_log'] = np.log1p(df['achievements'])
             feature_cols.extend(['achievements', 'has_achievements', 'achievements_log'])
-        
-        # Required age
+
+        # ============================================================================
+        # 5. AGE RATING FEATURES (2 features)
+        # ============================================================================
+        print("  [5/10] Age rating features...")
         if 'required_age' in df.columns:
             df['required_age'] = pd.to_numeric(df['required_age'], errors='coerce').fillna(0)
             df['is_mature'] = (df['required_age'] >= 18).astype(int)
             feature_cols.extend(['required_age', 'is_mature'])
-        
-        # Categories
+
+        # ============================================================================
+        # 6. STEAM CATEGORIES FEATURES (12 features)
+        # Steam-specific features: achievements, trading cards, cloud, etc.
+        # ============================================================================
+        print("  [6/10] Steam categories features...")
         if 'categories' in df.columns:
-            cats = ['Single-player', 'Multi-player', 'Online Multi-Player',
-                   'Steam Achievements', 'Steam Trading Cards', 'Steam Cloud',
-                   'Full controller support', 'Co-op', 'Online Co-op',
-                   'In-App Purchases', 'VR Support', 'Steam Workshop']
+            cats = [
+                'Single-player',              # cat_single_player
+                'Multi-player',               # cat_multi_player
+                'Online Multi-Player',        # cat_online_multi_player
+                'Steam Achievements',         # cat_steam_achievements
+                'Steam Trading Cards',        # cat_steam_trading_cards
+                'Steam Cloud',                # cat_steam_cloud
+                'Full controller support',    # cat_full_controller_support
+                'Co-op',                      # cat_co_op
+                'Online Co-op',               # cat_online_co_op
+                'In-App Purchases',           # cat_in_app_purchases
+                'VR Support',                 # cat_vr_support
+                'Steam Workshop'              # cat_steam_workshop
+            ]
             for cat in cats:
                 col = f'cat_{cat.lower().replace(" ", "_").replace("-", "_")}'
                 df[col] = df['categories'].str.contains(cat, case=False, na=False).astype(int)
                 feature_cols.append(col)
-        
-        # Genres
+
+        # ============================================================================
+        # 7. GENRE FEATURES (12 features)
+        # Primary game genres
+        # ============================================================================
+        print("  [7/10] Genre features...")
         if 'genres' in df.columns:
-            genres = ['Indie', 'Action', 'Casual', 'Adventure', 'Strategy', 
-                     'Simulation', 'RPG', 'Early Access', 'Free to Play', 
-                     'Sports', 'Racing', 'Massively Multiplayer']
+            genres = [
+                'Indie',                      # genre_indie
+                'Action',                     # genre_action
+                'Casual',                     # genre_casual
+                'Adventure',                  # genre_adventure
+                'Strategy',                   # genre_strategy
+                'Simulation',                 # genre_simulation
+                'RPG',                        # genre_rpg
+                'Early Access',               # genre_early_access
+                'Free to Play',               # genre_free_to_play
+                'Sports',                     # genre_sports
+                'Racing',                     # genre_racing
+                'Massively Multiplayer'       # genre_massively_multiplayer
+            ]
             for g in genres:
                 col = f'genre_{g.lower().replace(" ", "_")}'
                 df[col] = df['genres'].str.contains(g, case=False, na=False).astype(int)
                 feature_cols.append(col)
-        
-        # Tags
+
+        # ============================================================================
+        # 8. TAG FEATURES (26 features)
+        # SteamSpy tags - gameplay styles and themes
+        # ============================================================================
+        print("  [8/10] Tag features...")
         if 'steamspy_tags' in df.columns:
-            tags = ['Action', 'Casual', 'Adventure', 'Strategy', 'Simulation',
-                   'RPG', 'Free to Play', 'Puzzle', 'FPS', 'Multiplayer',
-                   'Indie', 'Singleplayer', 'Open World', 'Survival', 'Horror',
-                   'Platformer', 'Sandbox', '2D', 'Pixel Graphics', 'Roguelike',
-                   'VR', 'Sports', 'Racing', 'Anime', 'Story Rich', 'Co-op']
+            tags = [
+                'Action', 'Casual', 'Adventure', 'Strategy', 'Simulation',
+                'RPG', 'Free to Play', 'Puzzle', 'FPS', 'Multiplayer',
+                'Indie', 'Singleplayer', 'Open World', 'Survival', 'Horror',
+                'Platformer', 'Sandbox', '2D', 'Pixel Graphics', 'Roguelike',
+                'VR', 'Sports', 'Racing', 'Anime', 'Story Rich', 'Co-op'
+            ]
             for t in tags:
                 col = f'tag_{t.lower().replace(" ", "_").replace("-", "_")}'
                 df[col] = df['steamspy_tags'].str.contains(t, case=False, na=False).astype(int)
                 feature_cols.append(col)
-        
-        # Developer
+
+        # ============================================================================
+        # 9. DEVELOPER FEATURES (22 features)
+        # Developer reputation and portfolio size
+        # ============================================================================
+        print("  [9/10] Developer features...")
         if 'developer' in df.columns:
             dev_counts = df['developer'].value_counts()
             df['dev_game_count'] = df['developer'].map(dev_counts).fillna(1)
             df['dev_game_count_log'] = np.log1p(df['dev_game_count'])
             feature_cols.extend(['dev_game_count', 'dev_game_count_log'])
-            
+
+            # Top 20 developer indicators (binary features)
             top_devs = dev_counts.head(20).index.tolist()
             for i, dev in enumerate(top_devs):
                 col = f'dev_top_{i+1}'
                 df[col] = (df['developer'] == dev).astype(int)
                 feature_cols.append(col)
-        
-        # Publisher
+
+        # ============================================================================
+        # 10. PUBLISHER FEATURES (2 features)
+        # Publisher reputation and portfolio size
+        # ============================================================================
+        print("  [10/10] Publisher features...")
         if 'publisher' in df.columns:
             pub_counts = df['publisher'].value_counts()
             df['pub_game_count'] = df['publisher'].map(pub_counts).fillna(1)
             df['pub_game_count_log'] = np.log1p(df['pub_game_count'])
             feature_cols.extend(['pub_game_count', 'pub_game_count_log'])
-        
-        # Clean names
+
+        # ============================================================================
+        # CLEANUP: Sanitize column names for XGBoost compatibility
+        # ============================================================================
         df.columns = [re.sub(r'[^A-Za-z0-9_]', '_', str(c)) for c in df.columns]
         feature_cols = [re.sub(r'[^A-Za-z0-9_]', '_', str(c)) for c in feature_cols]
         feature_cols = [c for c in list(dict.fromkeys(feature_cols)) if c in df.columns]
-        
+
+        print(f"  ✅ Total features created: {len(feature_cols)}")
+
         return df, feature_cols
     
     def _train_ensemble(self, X_train, y_train, X_test, y_test):
