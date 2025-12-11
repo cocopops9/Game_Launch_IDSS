@@ -6,11 +6,12 @@ A comprehensive Streamlit application that provides data-driven insights for gam
 
 The Game Launch IDSS helps game developers make informed decisions about their game's features, pricing, and positioning by analyzing historical Steam market data. The system provides:
 
-- **Market Positioning**: Percentile-based ranking of your game configuration
+- **Market Positioning**: Percentile-based ranking of your game configuration (XGBoost Rank)
 - **Improvement Scenarios**: Data-driven recommendations for feature additions
 - **Success Factors**: Key strengths and readiness assessment
 - **Risk Assessment**: Potential challenges and market conditions
-- **Review Prediction**: Expected review ratio based on game features
+- **Owners Prediction**: Expected owner count for model performance analysis (XGBoost)
+- **Review Prediction**: Expected review ratio based on game features (XGBoost)
 
 ## 📊 Dataset
 
@@ -89,7 +90,16 @@ Highlights potential challenges:
 - Platform limitations
 - Missing critical features
 
-### 5. Review Prediction
+### 5. Owners Prediction
+
+Predicts expected absolute owner count using XGBoost regression (log-scale):
+- **R² Score**: ~0.36 (moderate prediction capability)
+- **Mean Absolute Error**: Varies by owner tier
+- **Use**: Model performance visualization and benchmarking
+
+**Note:** Used for data analysis and model performance metrics. The ranking model (percentile) is more reliable for decision-making.
+
+### 6. Review Prediction
 
 Predicts expected positive review ratio using XGBoost regression:
 - **R² Score**: 0.109 (limited prediction capability)
@@ -102,8 +112,8 @@ Predicts expected positive review ratio using XGBoost regression:
 | File | Purpose |
 |------|---------|
 | `app.py` | Main Streamlit application entry point |
-| `models.py` | ML model training (ensemble ranking + review prediction) |
-| `ranking_integration.py` | Core ranking system and model integration |
+| `models.py` | ML model training (owners prediction + review prediction) |
+| `ranking_integration.py` | XGBoost Rank model for percentile positioning |
 | `intelligence_engine.py` | Business intelligence analysis engine |
 | `new_game.py` | Interactive game configuration analyzer |
 | `data_analysis.py` | Model performance metrics and data exploration |
@@ -237,12 +247,14 @@ Readiness Score: 68/100
 
 ## 📊 Model Performance Summary
 
-| Model Component | Metric | Value |
-|----------------|---------|-------|
-| Ranking System | Spearman Correlation | 0.72 |
-| Ranking System | Percentile Precision | ±8-10 pts (75% within) |
-| Review Prediction | R² Score | 0.109 |
-| Review Prediction | MAE | 0.197 |
+| Model Component | Algorithm | Metric | Value |
+|----------------|-----------|--------|-------|
+| **Market Positioning** | XGBoost Rank | Spearman Correlation | 0.72 |
+| Market Positioning | XGBoost Rank | Percentile Precision | ±8-10 pts (75% within) |
+| **Owners Prediction** | XGBoost (log) | R² Score | ~0.36 |
+| Owners Prediction | XGBoost (log) | Use Case | Data analysis |
+| **Review Prediction** | XGBoost | R² Score | 0.109 |
+| Review Prediction | XGBoost | MAE | 0.197 |
 
 ## 📝 License
 
