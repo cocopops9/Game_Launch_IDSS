@@ -6,17 +6,18 @@ A comprehensive Streamlit application that provides data-driven insights for gam
 
 The Game Launch IDSS helps game developers make informed decisions about their game's features, pricing, and positioning by analyzing historical Steam market data. The system provides:
 
-- **Market Positioning**: Percentile-based ranking of your game configuration
+- **Market Positioning**: Percentile-based ranking of your game configuration (XGBoost Rank)
 - **Improvement Scenarios**: Data-driven recommendations for feature additions
 - **Success Factors**: Key strengths and readiness assessment
 - **Risk Assessment**: Potential challenges and market conditions
-- **Review Prediction**: Expected review ratio based on game features
+- **Owners Prediction**: Expected owner count for model performance analysis (XGBoost)
+- **Review Prediction**: Expected review ratio based on game features (XGBoost)
 
 ## 📊 Dataset
 
 - **27,075 Steam games** with comprehensive feature data
-- **134 engineered features** including:
-  - Price and monetization (price, free-to-play, DLC count)
+- **~87 engineered features** including:
+  - Price and monetization (price, free-to-play, price tiers)
   - Platforms (Windows, Mac, Linux)
   - Genres (Action, RPG, Strategy, etc.)
   - Categories (Single-player, Multiplayer, Co-op, etc.)
@@ -29,11 +30,9 @@ The Game Launch IDSS helps game developers make informed decisions about their g
 
 ### Installation
 
-Its recommended to start off with a fresh virtual python 3.14 environment.
-
 ```bash
 # 1. Install dependencies
-pip install streamlit pandas numpy scikit-learn xgboost scipy seaborn plotly lightgbm
+pip install streamlit pandas numpy scikit-learn xgboost scipy
 
 # 2. Place steam.csv in the project folder
 
@@ -49,15 +48,13 @@ The system will automatically train models on first run (takes 2-3 minutes). Mod
 
 ### 1. Market Positioning
 
-The system ranks your game configuration against all 27,075 Steam games using an ensemble of 4 machine learning models:
+The system ranks your game configuration against all 27,075 Steam games using **XGBoost Rank** machine learning model:
 
-- **XGBoost (rank target)** - Direct ranking optimization
-- **XGBoost (log-owners)** - Owner prediction with ranking
-- **GradientBoosting (rank)** - Gradient-based ranking
-- **RandomForest (log-owners)** - Ensemble prediction
+- **XGBoost (rank target)** - Direct ranking optimization trained on normalized ranks
+- Uses ~87 pre-launch features (no post-launch data like ratings or playtime)
+- Optimized specifically for accurate relative positioning
 
 **Performance:**
-
 - Spearman Rank Correlation: **0.72**
 - This measures how accurately the system ranks games relative to each other
 - A correlation > 0.60 is considered reliable for decision support
@@ -74,7 +71,6 @@ SUGGESTED IMPROVEMENTS:
 ```
 
 **Confidence Levels** are based on historical impact analysis:
-
 - **High**: Validated by strong historical data (median lift > 100%)
 - **Medium**: Moderate historical evidence (median lift 30-100%)
 - **Low**: Weak or inconsistent historical evidence
@@ -82,7 +78,6 @@ SUGGESTED IMPROVEMENTS:
 ### 3. Success Factors
 
 Identifies your game's strengths:
-
 - **Readiness Score**: Overall assessment (0-100)
 - **Key Strengths**: Features that position your game favorably
 - **Impact Level**: Magnitude of each factor's contribution
@@ -90,16 +85,23 @@ Identifies your game's strengths:
 ### 4. Risk Assessment
 
 Highlights potential challenges:
-
 - Market saturation in your genre/category
 - Price positioning concerns
 - Platform limitations
 - Missing critical features
 
-### 5. Review Prediction
+### 5. Owners Prediction
+
+Predicts expected absolute owner count using XGBoost regression (log-scale):
+- **R² Score**: ~0.36 (moderate prediction capability)
+- **Mean Absolute Error**: Varies by owner tier
+- **Use**: Model performance visualization and benchmarking
+
+**Note:** Used for data analysis and model performance metrics. The ranking model (percentile) is more reliable for decision-making.
+
+### 6. Review Prediction
 
 Predicts expected positive review ratio using XGBoost regression:
-
 - **R² Score**: 0.109 (limited prediction capability)
 - **Mean Absolute Error**: 0.197 on 0-1 scale
 
@@ -107,15 +109,15 @@ Predicts expected positive review ratio using XGBoost regression:
 
 ## 📁 Project Structure
 
-| File                     | Purpose                                                  |
-| ------------------------ | -------------------------------------------------------- |
-| `app.py`                 | Main Streamlit application entry point                   |
-| `models.py`              | ML model training (ensemble ranking + review prediction) |
-| `ranking_integration.py` | Core ranking system and model integration                |
-| `intelligence_engine.py` | Business intelligence analysis engine                    |
-| `new_game.py`            | Interactive game configuration analyzer                  |
-| `data_analysis.py`       | Model performance metrics and data exploration           |
-| `steam.csv`              | Steam games dataset (27,075 games)                       |
+| File | Purpose |
+|------|---------|
+| `app.py` | Main Streamlit application entry point |
+| `models.py` | ML model training (owners prediction + review prediction) |
+| `ranking_integration.py` | XGBoost Rank model for percentile positioning |
+| `intelligence_engine.py` | Business intelligence analysis engine |
+| `new_game.py` | Interactive game configuration analyzer |
+| `data_analysis.py` | Model performance metrics and data exploration |
+| `steam.csv` | Steam games dataset (27,075 games) |
 
 ## 🎮 How to Use
 
@@ -123,7 +125,6 @@ Predicts expected positive review ratio using XGBoost regression:
 
 1. **Navigate to "New Game Analysis"** tab
 2. **Configure your game:**
-
    - Set price ($0-60+)
    - Select platforms (Windows/Mac/Linux)
    - Choose genres (Action, RPG, Strategy, etc.)
@@ -132,7 +133,6 @@ Predicts expected positive review ratio using XGBoost regression:
    - Input developer/publisher stats
 
 3. **Review the analysis:**
-
    - Market percentile ranking
    - Tier classification (elite/strong/average/weak/struggling)
    - Success factors and readiness score
@@ -148,7 +148,6 @@ Predicts expected positive review ratio using XGBoost regression:
 
 1. **Navigate to "Data Analysis"** tab
 2. **Review model performance:**
-
    - Ranking accuracy (Spearman correlation: 0.72)
    - Percentile distance metric
    - Review prediction performance
@@ -165,12 +164,12 @@ Predicts expected positive review ratio using XGBoost regression:
 
 The system uses percentile-based positioning rather than absolute owner predictions:
 
-1. **Feature Engineering**: 134 features extracted from game configuration
-2. **Ensemble Prediction**: 4 models predict log(owners) with different algorithms
-3. **Percentile Conversion**: Predictions converted to 1-99 percentile scale
-4. **Weighted Average**: Final ranking combines all models based on performance
+1. **Feature Engineering**: ~87 pre-launch features extracted from game configuration
+2. **Rank Prediction**: XGBoost model trained on normalized ranks (0-1) using rankdata
+3. **Percentile Conversion**: Rank scores converted to 1-99 percentile scale using reference distribution
+4. **Validation**: Each improvement scenario validated against historical data
 
-**Key Insight**: Even though Steam owner data is bucketed (0-20k, 20k-50k, etc.), the ML models use 73+ features to create meaningful sub-rankings within each bucket, enabling accurate percentile positioning.
+**Key Insight**: The model is trained to predict **relative rankings** (not absolute owners), which is more stable and reliable for market positioning. Uses only features available before launch (no post-launch metrics).
 
 ### Model Validation
 
@@ -248,12 +247,14 @@ Readiness Score: 68/100
 
 ## 📊 Model Performance Summary
 
-| Model Component   | Metric               | Value                  |
-| ----------------- | -------------------- | ---------------------- |
-| Ranking System    | Spearman Correlation | 0.72                   |
-| Ranking System    | Percentile Precision | ±8-10 pts (75% within) |
-| Review Prediction | R² Score             | 0.109                  |
-| Review Prediction | MAE                  | 0.197                  |
+| Model Component | Algorithm | Metric | Value |
+|----------------|-----------|--------|-------|
+| **Market Positioning** | XGBoost Rank | Spearman Correlation | 0.72 |
+| Market Positioning | XGBoost Rank | Percentile Precision | ±8-10 pts (75% within) |
+| **Owners Prediction** | XGBoost (log) | R² Score | ~0.36 |
+| Owners Prediction | XGBoost (log) | Use Case | Data analysis |
+| **Review Prediction** | XGBoost | R² Score | 0.109 |
+| Review Prediction | XGBoost | MAE | 0.197 |
 
 ## 📝 License
 
@@ -266,3 +267,4 @@ This is a research project. For questions or suggestions, please open an issue.
 ---
 
 **Built with:** Python • Streamlit • scikit-learn • XGBoost • pandas • numpy
+# Updated
