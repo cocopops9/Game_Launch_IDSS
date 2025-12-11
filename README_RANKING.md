@@ -74,25 +74,27 @@ def analyze_game(game_features):
 
 ## How It Works
 
-1. **Ensemble of 4 Models**: XGBoost (rank target), XGBoost (log-owners), GradientBoosting, RandomForest
-2. **Direct Rank Prediction**: Models predict relative position, not absolute owners
-3. **Validated Improvements**: Each recommendation is validated against historical data
-4. **Confidence Scoring**: High confidence = model prediction matches historical evidence
+1. **XGBoost Rank Model**: Single optimized model trained on normalized ranks
+2. **Direct Rank Prediction**: Model predicts relative position, not absolute owners
+3. **Pre-launch Features Only**: Uses ~87 features available before game launch (no ratings, playtime)
+4. **Validated Improvements**: Each recommendation is validated against historical data
+5. **Confidence Scoring**: High confidence = model prediction matches historical evidence
 
 ## Key Features
 
 | Feature | Value |
 |---------|-------|
-| Spearman Correlation | 0.7238 |
-| Training Samples | 21,660 |
-| Test Samples | 5,415 |
-| Features | 106 |
+| Spearman Correlation | 0.72 |
+| Training Samples | ~21,660 |
+| Test Samples | ~5,415 |
+| Features | ~87 |
 | Validated Improvements | 7 |
 
 ## Files
 
-- `ranking_integration.py` - Main integration module (use this)
-- `intelligent_ranking_model.py` - Standalone full model with more features
+- `ranking_integration.py` - Main ranking module with XGBoost Rank model
+- `intelligence_engine.py` - Business intelligence layer that uses the ranker
+- `models.py` - Model training and feature engineering
 
 ## Validated Improvement Scenarios
 

@@ -15,8 +15,8 @@ The Game Launch IDSS helps game developers make informed decisions about their g
 ## 📊 Dataset
 
 - **27,075 Steam games** with comprehensive feature data
-- **134 engineered features** including:
-  - Price and monetization (price, free-to-play, DLC count)
+- **~87 engineered features** including:
+  - Price and monetization (price, free-to-play, price tiers)
   - Platforms (Windows, Mac, Linux)
   - Genres (Action, RPG, Strategy, etc.)
   - Categories (Single-player, Multiplayer, Co-op, etc.)
@@ -47,12 +47,11 @@ The system will automatically train models on first run (takes 2-3 minutes). Mod
 
 ### 1. Market Positioning
 
-The system ranks your game configuration against all 27,075 Steam games using an ensemble of 4 machine learning models:
+The system ranks your game configuration against all 27,075 Steam games using **XGBoost Rank** machine learning model:
 
-- **XGBoost (rank target)** - Direct ranking optimization
-- **XGBoost (log-owners)** - Owner prediction with ranking
-- **GradientBoosting (rank)** - Gradient-based ranking
-- **RandomForest (log-owners)** - Ensemble prediction
+- **XGBoost (rank target)** - Direct ranking optimization trained on normalized ranks
+- Uses ~87 pre-launch features (no post-launch data like ratings or playtime)
+- Optimized specifically for accurate relative positioning
 
 **Performance:**
 - Spearman Rank Correlation: **0.72**
@@ -155,12 +154,12 @@ Predicts expected positive review ratio using XGBoost regression:
 
 The system uses percentile-based positioning rather than absolute owner predictions:
 
-1. **Feature Engineering**: 134 features extracted from game configuration
-2. **Ensemble Prediction**: 4 models predict log(owners) with different algorithms
-3. **Percentile Conversion**: Predictions converted to 1-99 percentile scale
-4. **Weighted Average**: Final ranking combines all models based on performance
+1. **Feature Engineering**: ~87 pre-launch features extracted from game configuration
+2. **Rank Prediction**: XGBoost model trained on normalized ranks (0-1) using rankdata
+3. **Percentile Conversion**: Rank scores converted to 1-99 percentile scale using reference distribution
+4. **Validation**: Each improvement scenario validated against historical data
 
-**Key Insight**: Even though Steam owner data is bucketed (0-20k, 20k-50k, etc.), the ML models use 73+ features to create meaningful sub-rankings within each bucket, enabling accurate percentile positioning.
+**Key Insight**: The model is trained to predict **relative rankings** (not absolute owners), which is more stable and reliable for market positioning. Uses only features available before launch (no post-launch metrics).
 
 ### Model Validation
 
