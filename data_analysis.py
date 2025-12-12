@@ -147,27 +147,44 @@ def display_correlations(df: pd.DataFrame, data_analysis: dict):
     
     # Correlation heatmap
     st.markdown("#### Feature Correlation Heatmap")
-    
+
     if 'correlations' in data_analysis:
         corr_matrix = data_analysis['correlations']
-        
-        # Select key features for visualization
-        key_features = ['price', 'windows', 'mac', 'linux', 'is_free', 
-                       'platform_count', 'owners', 'review_ratio']
-        key_features = [f for f in key_features if f in corr_matrix.columns]
-        
-        if len(key_features) >= 3:
-            subset_corr = corr_matrix.loc[key_features, key_features]
-            
+
+        # Default features for visualization
+        default_features = ['price', 'windows', 'mac', 'linux', 'is_free',
+                           'platform_count', 'owners', 'review_ratio']
+        default_features = [f for f in default_features if f in corr_matrix.columns]
+
+        # All available features (excluding owners which will be added automatically)
+        available_features = [f for f in corr_matrix.columns if f != 'owners']
+
+        # Feature selection
+        selected_features = st.multiselect(
+            "Select features to include in correlation matrix:",
+            options=available_features,
+            default=[f for f in default_features if f != 'owners'],
+            help="Select features to see their correlations with each other and with owners"
+        )
+
+        # Always include owners
+        if 'owners' in corr_matrix.columns and 'owners' not in selected_features:
+            selected_features = selected_features + ['owners']
+
+        if len(selected_features) >= 2:
+            subset_corr = corr_matrix.loc[selected_features, selected_features]
+
             fig = px.imshow(
                 subset_corr,
                 labels=dict(x="Feature", y="Feature", color="Correlation"),
                 color_continuous_scale='RdBu',
                 aspect='auto',
-                title='Correlation Matrix (Key Features)'
+                title='Correlation Matrix (Selected Features)'
             )
-            fig.update_layout(height=400)
+            fig.update_layout(height=max(400, len(selected_features) * 25))
             st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("Please select at least 2 features to display the correlation matrix.")
 
 
 def display_model_performance(models: dict):
