@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" width="960" height="300" role="img">
+<title>Game Launch IDSS: market percentile gauge</title>
+<style>
+  text { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; fill: #e6edf7; }
+  .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .muted { fill: #8da2c0; }
+  .dim { fill: #5b6b88; }
+</style>
+<defs><linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#131c35"/></linearGradient></defs>
+<rect width="960" height="300" rx="18" fill="url(#bgGrad)"/>
+<circle cx="232" cy="39" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.2s" begin="0.4s" repeatCount="indefinite"/></circle>
+<circle cx="29" cy="164" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.3s" begin="3.1s" repeatCount="indefinite"/></circle>
+<circle cx="219" cy="160" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.2s" begin="3.3s" repeatCount="indefinite"/></circle>
+<circle cx="256" cy="274" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.4s" begin="3.2s" repeatCount="indefinite"/></circle>
+<circle cx="762" cy="64" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="3.5s" begin="3.5s" repeatCount="indefinite"/></circle>
+<circle cx="913" cy="248" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="2.8s" begin="2.4s" repeatCount="indefinite"/></circle>
+<circle cx="641" cy="152" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="3.4s" begin="1.1s" repeatCount="indefinite"/></circle>
+<circle cx="898" cy="239" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.4s" begin="0.0s" repeatCount="indefinite"/></circle>
+<circle cx="284" cy="207" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.5s" begin="2.0s" repeatCount="indefinite"/></circle>
+<circle cx="399" cy="178" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.1s" begin="0.9s" repeatCount="indefinite"/></circle>
+<circle cx="254" cy="233" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="2.7s" begin="2.5s" repeatCount="indefinite"/></circle>
+<circle cx="274" cy="160" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.0s" begin="0.6s" repeatCount="indefinite"/></circle>
+<circle cx="643" cy="29" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.7s" begin="1.8s" repeatCount="indefinite"/></circle>
+<circle cx="183" cy="132" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="3.6s" begin="2.2s" repeatCount="indefinite"/></circle>
+<circle cx="860" cy="38" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.0s" begin="1.1s" repeatCount="indefinite"/></circle>
+<circle cx="557" cy="251" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="3.7s" begin="0.7s" repeatCount="indefinite"/></circle>
+<circle cx="441" cy="22" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="2.8s" begin="3.9s" repeatCount="indefinite"/></circle>
+<circle cx="279" cy="199" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="2.6s" begin="1.2s" repeatCount="indefinite"/></circle>
+<circle cx="918" cy="227" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.5s" begin="3.5s" repeatCount="indefinite"/></circle>
+<circle cx="649" cy="32" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="3.2s" begin="1.8s" repeatCount="indefinite"/></circle>
+<circle cx="138" cy="117" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="3.7s" begin="0.0s" repeatCount="indefinite"/></circle>
+<circle cx="52" cy="57" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="6.0s" begin="2.3s" repeatCount="indefinite"/></circle>
+<circle cx="423" cy="68" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="2.9s" begin="0.2s" repeatCount="indefinite"/></circle>
+<circle cx="703" cy="177" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.6s" begin="2.2s" repeatCount="indefinite"/></circle>
+<circle cx="558" cy="100" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="2.9s" begin="2.1s" repeatCount="indefinite"/></circle>
+<circle cx="737" cy="125" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.2s" begin="1.0s" repeatCount="indefinite"/></circle>
+<circle cx="396" cy="20" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.1s" begin="2.6s" repeatCount="indefinite"/></circle>
+<circle cx="412" cy="70" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="2.6s" begin="1.0s" repeatCount="indefinite"/></circle>
+<circle cx="238" cy="68" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.0s" begin="1.0s" repeatCount="indefinite"/></circle>
+<circle cx="316" cy="259" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.5s" begin="4.0s" repeatCount="indefinite"/></circle>
+<circle cx="389" cy="262" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.5s" begin="2.9s" repeatCount="indefinite"/></circle>
+<circle cx="48" cy="118" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="3.2s" begin="3.5s" repeatCount="indefinite"/></circle>
+<circle cx="856" cy="269" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="3.5s" begin="1.9s" repeatCount="indefinite"/></circle>
+<circle cx="857" cy="98" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.3s" begin="2.6s" repeatCount="indefinite"/></circle>
+<circle cx="655" cy="85" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.8s" begin="0.3s" repeatCount="indefinite"/></circle>
+<circle cx="923" cy="279" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="3.2s" begin="1.6s" repeatCount="indefinite"/></circle>
+<circle cx="592" cy="225" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.8s" begin="0.2s" repeatCount="indefinite"/></circle>
+<circle cx="167" cy="188" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.2s" begin="1.6s" repeatCount="indefinite"/></circle>
+<circle cx="377" cy="233" r="0.8" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.7s" begin="0.1s" repeatCount="indefinite"/></circle>
+<circle cx="834" cy="42" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.6s" begin="2.2s" repeatCount="indefinite"/></circle>
+<circle cx="836" cy="66" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.6s" begin="3.3s" repeatCount="indefinite"/></circle>
+<circle cx="539" cy="230" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.0s" begin="0.3s" repeatCount="indefinite"/></circle>
+<circle cx="664" cy="42" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.5s" begin="2.4s" repeatCount="indefinite"/></circle>
+<circle cx="140" cy="112" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.7s" begin="1.2s" repeatCount="indefinite"/></circle>
+<circle cx="336" cy="31" r="1.5" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="4.1s" begin="0.8s" repeatCount="indefinite"/></circle>
+<circle cx="928" cy="119" r="1.1" fill="#9fb7e0" opacity="0.15"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="5.5s" begin="1.6s" repeatCount="indefinite"/></circle>
+<text x="40" y="66" font-size="13" letter-spacing="3" style="fill:#38bdf8">INTELLIGENT DECISION SUPPORT SYSTEM</text>
+<text x="38" y="118" font-size="46" font-weight="800">Game Launch IDSS</text>
+<text x="40" y="156" font-size="17" class="muted">Where would your game rank among 27,075 Steam games,</text>
+<text x="40" y="180" font-size="17" class="muted">and which feature changes would move it up?</text>
+<rect x="40" y="218" width="146" height="30" rx="15" fill="none" stroke="#38bdf8" stroke-opacity="0.7"/><text x="113" y="238" font-size="13" text-anchor="middle" style="fill:#38bdf8">27,075 Steam games</text><rect x="195.79999999999998" y="218" width="176" height="30" rx="15" fill="none" stroke="#a78bfa" stroke-opacity="0.7"/><text x="284" y="238" font-size="13" text-anchor="middle" style="fill:#a78bfa">91 pre-launch features</text><rect x="382.0" y="218" width="146" height="30" rx="15" fill="none" stroke="#fbbf24" stroke-opacity="0.7"/><text x="455" y="238" font-size="13" text-anchor="middle" style="fill:#fbbf24">XGBoost, 150 trees</text><rect x="537.8" y="218" width="115" height="30" rx="15" fill="none" stroke="#34d399" stroke-opacity="0.7"/><text x="596" y="238" font-size="13" text-anchor="middle" style="fill:#34d399">Spearman 0.725</text>
+<text x="40" y="276" font-size="11.5" class="dim">Numbers are real outputs of the repository's model (snapshot 2026-10-22).</text>
+<path d="M660.0,187.8 A115,115 0 0 1 680.7,124.2" stroke="#dc3545" stroke-width="22" fill="none" opacity="0.9"/><path d="M683.3,120.7 A115,115 0 0 1 737.4,81.3" stroke="#fd7e14" stroke-width="22" fill="none" opacity="0.9"/><path d="M741.5,80.0 A115,115 0 0 1 808.5,80.0" stroke="#ffc107" stroke-width="22" fill="none" opacity="0.9"/><path d="M812.6,81.3 A115,115 0 0 1 866.7,120.7" stroke="#17a2b8" stroke-width="22" fill="none" opacity="0.9"/><path d="M869.3,124.2 A115,115 0 0 1 890.0,187.8" stroke="#28a745" stroke-width="22" fill="none" opacity="0.9"/><text x="678" y="194" font-size="11" text-anchor="middle" class="muted">0</text><text x="697" y="137" font-size="11" text-anchor="middle" class="muted">20</text><text x="745" y="102" font-size="11" text-anchor="middle" class="muted">40</text><text x="805" y="102" font-size="11" text-anchor="middle" class="muted">60</text><text x="853" y="137" font-size="11" text-anchor="middle" class="muted">80</text><text x="872" y="194" font-size="11" text-anchor="middle" class="muted">100</text><g><line x1="775" y1="190" x2="775" y2="101" stroke="#e6edf7" stroke-width="4" stroke-linecap="round"/><animateTransform attributeName="transform" type="rotate" dur="12s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.14;0.45;0.55;0.86;1" values="-90 775 190;-5.94 775 190;-5.94 775 190;28.44 775 190;28.44 775 190;-90 775 190" keySplines="0.4 0 0.2 1;0 0 1 1;0.4 0 0.2 1;0 0 1 1;0.4 0 0.2 1"/></g><circle cx="775" cy="190" r="9" fill="#e6edf7"/><g opacity="0"><text x="775" y="242" font-size="28" font-weight="700" text-anchor="middle">46.7<tspan font-size="15">th percentile</tspan></text><text x="775" y="262" font-size="12.5" text-anchor="middle" class="muted">default form values</text><animate attributeName="opacity" dur="12s" repeatCount="indefinite" keyTimes="0;0.12;0.14;0.45;0.47;1" values="0;0;1;1;0;0"/></g><g opacity="0"><text x="775" y="242" font-size="28" font-weight="700" text-anchor="middle" style="fill:#34d399">65.8<tspan font-size="15">th percentile</tspan></text><text x="775" y="262" font-size="12.5" text-anchor="middle" class="muted">+ "Target multiplayer audience"</text><animate attributeName="opacity" dur="12s" repeatCount="indefinite" keyTimes="0;0.53;0.55;0.86;0.88;1" values="0;0;1;1;0;0"/></g>
+
+</svg>

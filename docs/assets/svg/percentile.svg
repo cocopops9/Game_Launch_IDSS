@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 420" width="960" height="420" role="img">
+<title>Percentile mapping</title>
+<style>
+  text { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; fill: #e6edf7; }
+  .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .muted { fill: #8da2c0; }
+  .dim { fill: #5b6b88; }
+</style>
+<defs><linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#131c35"/></linearGradient></defs>
+<rect width="960" height="420" rx="18" fill="url(#bgGrad)"/>
+<text x="24" y="40" font-size="20" font-weight="800">Score to percentile: position inside 5,415 held-out scores</text>
+<text x="24" y="62" font-size="13" class="muted">percentile = searchsorted(sorted_reference, score) / 5,415 * 100, then clipped to [1, 99].</text>
+<rect x="90" y="80" width="550" height="250" fill="#111a2e" rx="8"/>
+<rect x="90" y="327.5" width="550" height="2.5" fill="#f87171" opacity="0.18"/>
+<rect x="90" y="80.0" width="550" height="2.5" fill="#f87171" opacity="0.18"/>
+<line x1="90" y1="330.0" x2="640" y2="330.0" stroke="#24324f"/><text x="82" y="334.0" font-size="11" text-anchor="end" class="mono muted">0</text>
+<line x1="90" y1="267.5" x2="640" y2="267.5" stroke="#24324f"/><text x="82" y="271.5" font-size="11" text-anchor="end" class="mono muted">25</text>
+<line x1="90" y1="205.0" x2="640" y2="205.0" stroke="#24324f"/><text x="82" y="209.0" font-size="11" text-anchor="end" class="mono muted">50</text>
+<line x1="90" y1="142.5" x2="640" y2="142.5" stroke="#24324f"/><text x="82" y="146.5" font-size="11" text-anchor="end" class="mono muted">75</text>
+<line x1="90" y1="80.0" x2="640" y2="80.0" stroke="#24324f"/><text x="82" y="84.0" font-size="11" text-anchor="end" class="mono muted">100</text>
+<text x="137.3" y="348" font-size="11" text-anchor="middle" class="mono muted">0.3</text>
+<text x="255.6" y="348" font-size="11" text-anchor="middle" class="mono muted">0.5</text>
+<text x="373.9" y="348" font-size="11" text-anchor="middle" class="mono muted">0.7</text>
+<text x="492.2" y="348" font-size="11" text-anchor="middle" class="mono muted">0.9</text>
+<text x="610.4" y="348" font-size="11" text-anchor="middle" class="mono muted">1.1</text>
+<text x="365.0" y="368" font-size="12" text-anchor="middle" class="muted">raw rank score from the 150 trees</text>
+<path d="M103.1,330.0 L154.4,327.5 L156.5,325.0 L157.7,322.5 L158.9,320.0 L159.8,317.5 L160.6,315.0 L161.2,312.5 L161.9,310.0 L162.5,307.5 L163.0,305.0 L163.4,302.5 L164.0,300.0 L164.5,297.5 L165.0,295.0 L165.5,292.5 L165.9,290.0 L166.3,287.5 L166.8,285.0 L167.2,282.5 L167.7,280.0 L168.1,277.5 L168.8,275.0 L169.2,272.5 L170.0,270.0 L170.6,267.5 L171.1,265.0 L171.8,262.5 L172.4,260.0 L173.2,257.5 L174.1,255.0 L175.0,252.5 L175.9,250.0 L176.8,247.5 L177.9,245.0 L178.8,242.5 L179.8,240.0 L180.8,237.5 L182.1,235.0 L183.6,232.5 L185.2,230.0 L186.9,227.5 L188.5,225.0 L190.5,222.5 L192.4,220.0 L194.2,217.5 L196.2,215.0 L199.1,212.5 L202.0,210.0 L204.6,207.5 L207.8,205.0 L211.4,202.5 L214.6,200.0 L217.6,197.5 L221.3,195.0 L225.3,192.5 L229.2,190.0 L233.2,187.5 L236.6,185.0 L240.3,182.5 L244.1,180.0 L249.4,177.5 L253.9,175.0 L258.1,172.5 L263.5,170.0 L267.3,167.5 L273.3,165.0 L277.4,162.5 L283.2,160.0 L289.2,157.5 L294.3,155.0 L299.9,152.5 L304.3,150.0 L310.2,147.5 L317.0,145.0 L323.4,142.5 L329.6,140.0 L337.1,137.5 L343.7,135.0 L349.9,132.5 L356.3,130.0 L363.9,127.5 L372.1,125.0 L381.1,122.5 L388.4,120.0 L395.4,117.5 L404.4,115.0 L411.8,112.5 L420.1,110.0 L427.6,107.5 L437.2,105.0 L445.9,102.5 L454.6,100.0 L464.4,97.5 L475.9,95.0 L488.9,92.5 L502.6,90.0 L515.0,87.5 L526.6,85.0 L547.6,82.5 L627.5,80.0" stroke="#a78bfa" stroke-width="3" fill="none"/>
+<text x="350.2" y="255.0" font-size="11.5" class="muted">steep rise at 0.33 to 0.36: thousands of</text>
+<text x="350.2" y="272.5" font-size="11.5" class="muted">near-identical scores of small games</text>
+<path d="M198.2,330 L198.2,213.2 L90,213.2" stroke="#38bdf8" stroke-width="2.2" fill="none" stroke-dasharray="900" stroke-dashoffset="900"><animate attributeName="stroke-dashoffset" dur="12s" repeatCount="indefinite" keyTimes="0;0.02;0.14;0.26;0.44;0.46;1" values="900;900;560;0;0;900;900"/></path><g opacity="0"><circle cx="198.2" cy="213.2" r="6" fill="#38bdf8"/><text x="100" y="205.2" font-size="14" font-weight="700" style="fill:#38bdf8">46.7th</text><text x="208.2" y="320" font-size="12" class="mono" style="fill:#38bdf8">score 0.403</text><animate attributeName="opacity" dur="12s" repeatCount="indefinite" keyTimes="0;0.24;0.26;0.44;0.46;1" values="0;0;1;1;0;0"/></g><g opacity="0"><text x="680" y="150" font-size="14" font-weight="700" style="fill:#38bdf8">default form values</text><animate attributeName="opacity" dur="12s" repeatCount="indefinite" keyTimes="0;0.02;0.04;0.44;0.46;1" values="0;0;1;1;0;0"/></g>
+<path d="M272.9,330 L272.9,165.5 L90,165.5" stroke="#34d399" stroke-width="2.2" fill="none" stroke-dasharray="900" stroke-dashoffset="900"><animate attributeName="stroke-dashoffset" dur="12s" repeatCount="indefinite" keyTimes="0;0.50;0.62;0.74;0.92;0.94;1" values="900;900;560;0;0;900;900"/></path><g opacity="0"><circle cx="272.9" cy="165.5" r="6" fill="#34d399"/><text x="100" y="157.5" font-size="14" font-weight="700" style="fill:#34d399">65.8th</text><text x="282.9" y="320" font-size="12" class="mono" style="fill:#34d399">score 0.529</text><animate attributeName="opacity" dur="12s" repeatCount="indefinite" keyTimes="0;0.72;0.74;0.92;0.94;1" values="0;0;1;1;0;0"/></g><g opacity="0"><text x="680" y="150" font-size="14" font-weight="700" style="fill:#34d399">+ tag_multiplayer = 1</text><animate attributeName="opacity" dur="12s" repeatCount="indefinite" keyTimes="0;0.50;0.52;0.92;0.94;1" values="0;0;1;1;0;0"/></g>
+<text x="680" y="110" font-size="12" class="dim">reading the curve:</text>
+<text x="680" y="230" font-size="13" font-weight="700">Why a reference set?</text>
+<text x="680" y="252" font-size="12" class="muted">A raw score has no business meaning.</text>
+<text x="680" y="269" font-size="12" class="muted">Comparing it with the model's own</text>
+<text x="680" y="286" font-size="12" class="muted">predictions for 5,415 real held-out</text>
+<text x="680" y="303" font-size="12" class="muted">games turns it into a market position,</text>
+<text x="680" y="320" font-size="12" class="muted">and cancels any constant bias of the model.</text>
+<text x="680" y="337" font-size="12" class="muted"></text>
+<text x="680" y="354" font-size="12" class="muted">Red bands: values below 1 or above 99</text>
+<text x="680" y="371" font-size="12" class="muted">are clipped to 1 and 99.</text>
+</svg>

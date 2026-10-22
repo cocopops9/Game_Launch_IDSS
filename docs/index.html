@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>IDSS Interactive Lab</title>
+  <meta name="description" content="Interactive, step-by-step walkthrough of the Game Launch IDSS pipeline, running the project's real XGBoost ranking model in the browser.">
+  <link rel="stylesheet" href="assets/css/lab.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">Game Launch IDSS <span>Interactive Lab</span></div>
+  <div class="spacer"></div>
+  <div class="live-badge" title="Live result for the configuration of Step 2">
+    <span class="live-dot"></span> <span class="lbl">your game:</span> <strong id="badge-pct">--</strong> <span id="badge-tier" class="muted"></span>
+  </div>
+  <button class="icon-btn" id="theme-toggle" type="button">Light / Dark</button>
+  <a class="icon-btn gh" href="https://github.com/cocopops9/Game_Launch_IDSS" style="text-decoration:none">GitHub</a>
+</header>
+
+<div class="layout">
+  <nav class="toc" aria-label="Steps">
+    <ol>
+      <li><a href="#intro">The pipeline</a></li>
+      <li><a href="#data">The data</a></li>
+      <li><a href="#configure">Configure a game</a></li>
+      <li><a href="#features">Feature mapping</a></li>
+      <li><a href="#boosting">Gradient boosting</a></li>
+      <li><a href="#ranking">Rank target and Spearman</a></li>
+      <li><a href="#percentile">Score to percentile</a></li>
+      <li><a href="#whatif">What-if engine</a></li>
+      <li><a href="#dashboard">Decision dashboard</a></li>
+      <li><a href="#validation">How good is it?</a></li>
+    </ol>
+    <div class="toc-foot">Every number on this page is computed live by the repository's exported model. Written walkthrough: <a href="https://github.com/cocopops9/Game_Launch_IDSS/tree/main/docs">docs/</a></div>
+  </nav>
+
+  <main>
+    <!-- 1. INTRO ------------------------------------------------------------------------------ -->
+    <section id="intro">
+      <div class="kicker">Step 1 &middot; The pipeline</div>
+      <h1>From a game idea to a market percentile</h1>
+      <p class="lead">
+        The Game Launch IDSS answers one question: <em>given only what a developer decides before launch
+        (price, platforms, genres, tags, Steam features), where would the game rank among 27,075 Steam games,
+        and which single change would move it up the most?</em>
+        This lab walks through the exact computation, one step at a time.
+      </p>
+      <div class="stages" id="stages"></div>
+      <div class="card stage-detail" id="stage-detail"></div>
+      <div class="callout info" id="model-facts"></div>
+    </section>
+
+    <!-- 2. DATA ------------------------------------------------------------------------------- -->
+    <section id="data">
+      <div class="kicker">Step 2 &middot; The data</div>
+      <h2>27,075 Steam games, and a very skewed target</h2>
+      <p>
+        <code>steam.csv</code> lists every game with its release date, platforms, categories, genres, SteamSpy tags,
+        price and an <strong>owners range</strong> (for example <code>20000-50000</code>). The loader converts each range to its midpoint.
+        Because owners are only known as 13 ranges, the target is <em>interval-censored</em>: two games in the same range are indistinguishable.
+      </p>
+      <div class="grid-4" id="data-stats"></div>
+      <div class="grid-2" style="margin-top:16px">
+        <div class="card">
+          <h3 style="margin-top:0">Games per owners range</h3>
+          <div class="controls"><div class="seg" id="owners-scale"><button class="on" data-v="log">log scale</button><button data-v="lin">linear</button></div></div>
+          <div id="chart-owners"></div>
+          <p class="source">Source: <code>steam.csv</code>, parsed by <code>SteamDataLoader.parse_owners_range</code></p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Release years and the two validation splits</h3>
+          <div class="controls"><div class="seg" id="split-mode"><button class="on" data-v="random">ranker: random 80/20</button><button data-v="temporal">owners model: before / after 2018</button></div></div>
+          <div id="chart-years"></div>
+          <p class="source" id="split-note"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. CONFIGURE -------------------------------------------------------------------------- -->
+    <section id="configure">
+      <div class="kicker">Step 3 &middot; Configure a game</div>
+      <h2>The same form as the Streamlit app</h2>
+      <p>
+        These controls replicate the <em>Analyze New Game</em> tab of <code>new_game.py</code>, with the same options and defaults.
+        Every later step reacts to this configuration. Inputs drawn with a <span style="color:var(--red)">dashed red</span>
+        border are accepted by the form but never reach the model (Step 4 explains why).
+      </p>
+      <div class="controls" id="presets"></div>
+      <div class="grid-2">
+        <div class="card">
+          <label class="field">Price (USD): <span class="price-out" id="price-out"></span></label>
+          <input type="range" id="in-price" min="0" max="59.99" step="0.01">
+          <label class="field">Platforms</label>
+          <div class="chips" id="in-platforms"></div>
+          <label class="field">Number of achievements</label>
+          <input type="number" id="in-achievements" min="0" max="500" step="1">
+          <label class="field">Release month</label>
+          <select id="in-month"></select>
+          <label class="field">Age rating</label>
+          <select id="in-age"></select>
+        </div>
+        <div class="card">
+          <label class="field">Primary genres</label>
+          <div class="chips" id="in-genres"></div>
+          <label class="field">Key tags</label>
+          <div class="chips" id="in-tags"></div>
+          <label class="field">Steam features</label>
+          <div class="checks" id="in-categories"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. FEATURES --------------------------------------------------------------------------- -->
+    <section id="features">
+      <div class="kicker">Step 4 &middot; Feature mapping</div>
+      <h2>Your form becomes a vector of 91 numbers</h2>
+      <p>
+        <code>IntelligenceEngine._build_ranker_features</code> converts the form into a dictionary; <code>_predict_rank</code> then builds a
+        row with the model's 91 columns, filling every column it did not receive with <strong>0</strong>. Cells light up when the value is non-zero.
+        Hover a cell for its column name.
+      </p>
+      <div class="grid-2">
+        <div class="card"><div id="feature-grid"></div></div>
+        <div class="card">
+          <h3 style="margin-top:0">Which inputs actually reach the model?</h3>
+          <table class="coverage" id="coverage"></table>
+          <div class="callout">
+            Hidden defaults: the form has no field for release year, game age or studio size, so the mapping always uses
+            <code>release_year = 2024</code>, <code>game_age_days = 100</code> and <code>dev_game_count = 1</code>.
+            Publisher columns stay 0, a value never seen in training (every real game has at least one publisher game).
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. BOOSTING --------------------------------------------------------------------------- -->
+    <section id="boosting">
+      <div class="kicker">Step 5 &middot; Gradient boosting</div>
+      <h2>150 small trees, each correcting the previous ones</h2>
+      <p>
+        The ranker is an <code>XGBRegressor</code>. Its prediction is a constant plus the sum of the outputs of 150 regression trees:
+        <span class="mono">score = base + f<sub>1</sub>(x) + ... + f<sub>150</sub>(x)</span>.
+        Tree <em>m</em> is fitted to the gradient of the squared error of the first <em>m - 1</em> trees (for squared error, simply the residuals),
+        and its output is shrunk by the learning rate 0.08.
+      </p>
+      <div class="card">
+        <h3 style="margin-top:0">A. Watch the algorithm on toy data</h3>
+        <p class="muted" style="margin-top:0">28 points, depth-2 trees, fitted live in your browser with the same update rule. Drag the slider to add trees.</p>
+        <div class="controls">
+          <span class="muted">learning rate</span>
+          <div class="seg" id="toy-lr"><button class="on" data-v="0.08">0.08 (project)</button><button data-v="0.3">0.3</button><button data-v="1">1.0</button></div>
+          <span class="muted" style="margin-left:12px">trees: <strong id="toy-m-out">0</strong></span>
+          <button class="btn small" id="toy-play" type="button">Play</button>
+        </div>
+        <input type="range" id="toy-m" min="0" max="150" step="1" value="0">
+        <div class="grid-2">
+          <div id="toy-fit"></div>
+          <div id="toy-loss"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">B. Inside the real model, for your configuration</h3>
+        <div class="grid-2">
+          <div>
+            <p class="muted" style="margin-top:0">Running total of the score as the 150 trees are added. Bars: each tree's contribution (green adds, orange subtracts).</p>
+            <div id="tree-cumulative"></div>
+          </div>
+          <div>
+            <div class="controls"><span class="muted">inspect tree</span><input type="range" id="tree-idx" min="1" max="150" value="1" style="flex:1"><strong id="tree-idx-out" class="mono">#1</strong></div>
+            <ol class="path-list" id="tree-path"></ol>
+          </div>
+        </div>
+        <p class="source">Trees exported from <code>ranker.ranking_models['xgb_rank']</code> by <code>docs/tools/export_lab_data.py</code>. Comparisons use single precision, as XGBoost does.</p>
+      </div>
+    </section>
+
+    <!-- 6. RANKING ---------------------------------------------------------------------------- -->
+    <section id="ranking">
+      <div class="kicker">Step 6 &middot; Rank target and Spearman</div>
+      <h2>Learning the order, not the owner count</h2>
+      <p>
+        The target is not <code>owners</code> but <code>rankdata(owners) / n</code> (<code>ranking_integration.py</code>, <code>_train_ensemble</code>):
+        each training game is replaced by its rank, scaled to (0, 1]. Ties share their average rank, so the 69% of training games in the
+        0 to 20k range all receive 0.345. The quality metric is therefore a <strong>rank</strong> metric: Spearman's &rho;, the Pearson correlation
+        computed on ranks.
+      </p>
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin-top:0">Real held-out games: tier vs predicted score</h3>
+          <div id="chart-scatter"></div>
+          <p class="source">800 random games of the 5,415-game test split. Amber line: median score per tier.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Why Spearman and not R&sup2;?</h3>
+          <p class="muted" style="margin-top:0">Distort the scores of the same 800 games and compare the two correlations with the actual owners tier.</p>
+          <label class="field">monotone distortion: score<sup id="pow-out">1</sup></label>
+          <input type="range" id="in-pow" min="1" max="12" step="1" value="1">
+          <label class="field">random noise added to the score: <span id="noise-out">0.00</span></label>
+          <input type="range" id="in-noise" min="0" max="0.5" step="0.01" value="0">
+          <div class="grid-2" style="margin-top:12px">
+            <div class="stat"><div class="v" id="rho-s">--</div><div class="l">Spearman &rho; (ranks)</div></div>
+            <div class="stat"><div class="v" id="rho-p">--</div><div class="l">Pearson r (raw values)</div></div>
+          </div>
+          <p class="muted">Any monotone distortion leaves Spearman unchanged, because ranks do not change; Pearson moves. Noise, which reorders games, lowers both.
+          A percentile only depends on order, so Spearman is the metric that matches how the score is used.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. PERCENTILE ------------------------------------------------------------------------- -->
+    <section id="percentile">
+      <div class="kicker">Step 7 &middot; Score to percentile</div>
+      <h2>Comparing your score with 5,415 real held-out games</h2>
+      <p>
+        <code>get_percentile</code> sorts the model's predictions for the test split (the <em>reference distribution</em>) and counts how many fall below
+        your score: <span class="mono">percentile = searchsorted(sorted_reference, score) / 5415 * 100</span>, then clips the result to [1, 99].
+      </p>
+      <div class="card">
+        <div id="chart-cdf"></div>
+        <div class="grid-3" style="margin-top:12px">
+          <div class="stat"><div class="v mono" id="cdf-score">--</div><div class="l">your raw score</div></div>
+          <div class="stat"><div class="v mono" id="cdf-below">--</div><div class="l">reference games scoring lower</div></div>
+          <div class="stat"><div class="v" id="cdf-pct">--</div><div class="l">percentile (after clipping)</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. WHAT-IF ---------------------------------------------------------------------------- -->
+    <section id="whatif">
+      <div class="kicker">Step 8 &middot; What-if engine</div>
+      <h2>13 counterfactual changes, re-scored one at a time</h2>
+      <p>
+        <code>get_improvements</code> copies your feature dictionary, sets <em>one</em> feature to a target value, recomputes the percentile and keeps the change
+        when the gain exceeds 0.5 percentile points. Candidates whose feature is already present, or whose dependency is missing, are skipped.
+        The engine shows the six largest gains. Click <em>apply</em> to make the change through the form and see the real effect.
+      </p>
+      <div class="card" style="overflow-x:auto">
+        <table class="whatif" id="whatif-table"></table>
+      </div>
+      <div class="callout" id="apply-note" style="display:none"></div>
+      <h3>Where the confidence labels come from</h3>
+      <p>
+        At training time, <code>_validate_improvements</code> checks seven features on the test split. For each, it compares games <em>with</em> and
+        <em>without</em> the feature and evaluates two booleans: <em>is the model's mean predicted rank higher with the feature?</em> and
+        <em>is the actual median owners strictly higher with the feature?</em> Equal booleans give <strong>High</strong>, different booleans give <strong>Low</strong>.
+        Features with fewer than 50 test games in either group are not validated, and every non-validated candidate is labelled <strong>Medium</strong>.
+      </p>
+      <div class="card" style="overflow-x:auto"><table class="plain" id="validation-table"></table></div>
+      <div class="callout warn">
+        Why three features come out <strong>Low</strong> with a lift of 0%: about 67% of test games sit in the lowest owners range, so the median owners of
+        both groups is 10,000 (the midpoint of 0 to 20k) and the lift is exactly zero. "Low" here means "the median cannot see a difference",
+        not "the feature hurts".
+      </div>
+    </section>
+
+    <!-- 9. DASHBOARD -------------------------------------------------------------------------- -->
+    <section id="dashboard">
+      <div class="kicker">Step 9 &middot; Decision dashboard</div>
+      <h2>What the Streamlit app shows for your configuration</h2>
+      <p>The percentile feeds deterministic rules in <code>intelligence_engine.py</code>: tier thresholds, risk rules, a readiness score and short insights.</p>
+      <div class="grid-2">
+        <div class="card"><div id="gauge"></div></div>
+        <div class="card">
+          <div class="dash-metrics" id="dash-metrics"></div>
+          <h3>Key insights</h3>
+          <div id="dash-insights"></div>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-top:16px">
+        <div class="card"><h3 style="margin-top:0">Risk assessment</h3><div id="dash-risks"></div></div>
+        <div class="card"><h3 style="margin-top:0">Success factors</h3><div id="dash-factors"></div></div>
+      </div>
+    </section>
+
+    <!-- 10. VALIDATION ------------------------------------------------------------------------ -->
+    <section id="validation">
+      <div class="kicker">Step 10 &middot; How good is it?</div>
+      <h2>Measured performance, and what it does not mean</h2>
+      <div class="grid-4" id="metric-cards"></div>
+      <div class="card" style="margin-top:16px; overflow-x:auto">
+        <h3 style="margin-top:0">Held-out games: predicted vs actual percentile</h3>
+        <table class="plain" id="sample-table"></table>
+        <p class="source">For each owners range, the most-reviewed game of the test split. Actual percentile = average rank of the game's owners range among the 5,415 test games.</p>
+      </div>
+      <div class="callout warn">
+        <strong>Read the numbers with care.</strong> The 0.725 (bootstrap 95% interval 0.712 to 0.738) is measured on a random split, where a game's
+        age and release year tell the model how long the game has been accumulating owners. Retraining the same recipe on a temporal split
+        (train on games released before 2018, test on 2018 and later) gives a Spearman of <strong>0.432</strong>, which is the better estimate for a game
+        that has not launched yet. Associations are not causal effects: "games with Trading Cards rank higher" does not prove that adding Trading Cards
+        causes more owners. See <a href="https://github.com/cocopops9/Game_Launch_IDSS/blob/main/docs/11_limitations.md">docs/11_limitations.md</a>.
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer>
+  Game Launch IDSS &middot; Interactive Lab &middot; model snapshot <span id="foot-date"></span> &middot;
+  regenerate with <code>python docs/tools/export_lab_data.py</code>
+</footer>
+
+<script src="assets/data/ranker_model.js"></script>
+<script src="assets/data/dataset_stats.js"></script>
+<script src="assets/js/idss-core.js"></script>
+<script src="assets/js/lab.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Core application
+streamlit>=1.30
+plotly>=5.15
+
+# Data and machine learning
+pandas>=2.0,<3.0      # pandas 3 changes the string dtype and breaks owners parsing in data_loader.py
+numpy>=1.24
+scipy>=1.10
+scikit-learn>=1.3
+xgboost>=2.0
+
+# Imported by models.py and data_analysis.py (required for the modules to load)
+lightgbm>=4.0
+seaborn>=0.12
+matplotlib>=3.7

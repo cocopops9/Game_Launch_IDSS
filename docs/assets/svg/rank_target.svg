@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="960" height="480" role="img">
+<title>Rank-normalized target</title>
+<style>
+  text { font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; fill: #e6edf7; }
+  .mono { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+  .muted { fill: #8da2c0; }
+  .dim { fill: #5b6b88; }
+</style>
+<defs><linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b1220"/><stop offset="1" stop-color="#131c35"/></linearGradient></defs>
+<rect width="960" height="480" rx="18" fill="url(#bgGrad)"/>
+<text x="24" y="40" font-size="20" font-weight="800">Owners tiers become a rank target in [0, 1]</text>
+<text x="24" y="62" font-size="13" class="muted">Training set (21,660 games). y = rankdata(owners) / n, average rank for ties: every game in a tier shares one value.</text>
+<text x="112" y="96" font-size="11.5" text-anchor="end" class="mono muted">0 - 20k</text>
+<rect x="120" y="85" width="0" height="14" rx="3" fill="#38bdf8" opacity="0.85"><animate attributeName="width" values="0;259.9;259.9;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="385.9" y="96" font-size="11" class="mono dim">14,966</text>
+<path d="M449.9,92 C569.9,92 684.4,304 684.4,394" stroke="#38bdf8" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#38bdf8" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M449.9,92 C569.9,92 684.4,304 684.4,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="118" font-size="11.5" text-anchor="end" class="mono muted">20k - 50k</text>
+<rect x="120" y="107" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;210.5;210.5;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="336.5" y="118" font-size="11" class="mono dim">2,404</text>
+<path d="M400.5,114 C520.5,114 828.7,304 828.7,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M400.5,114 C520.5,114 828.7,304 828.7,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="140" font-size="11.5" text-anchor="end" class="mono muted">50k - 100k</text>
+<rect x="120" y="129" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;194.6;194.6;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="320.6" y="140" font-size="11" class="mono dim">1,336</text>
+<path d="M384.6,136 C504.6,136 859.8,304 859.8,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M384.6,136 C504.6,136 859.8,304 859.8,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="162" font-size="11.5" text-anchor="end" class="mono muted">100k - 200k</text>
+<rect x="120" y="151" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;189.3;189.3;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="315.3" y="162" font-size="11" class="mono dim">1,096</text>
+<path d="M379.3,158 C499.3,158 880.0,304 880.0,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M379.3,158 C499.3,158 880.0,304 880.0,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="184" font-size="11.5" text-anchor="end" class="mono muted">200k - 500k</text>
+<rect x="120" y="173" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;187.0;187.0;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="313.0" y="184" font-size="11" class="mono dim">1,009</text>
+<path d="M377.0,180 C497.0,180 897.5,304 897.5,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M377.0,180 C497.0,180 897.5,304 897.5,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="206" font-size="11.5" text-anchor="end" class="mono muted">500k - 1M</text>
+<rect x="120" y="195" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;162.3;162.3;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="288.3" y="206" font-size="11" class="mono dim">403</text>
+<path d="M352.3,202 C472.3,202 909.2,304 909.2,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M352.3,202 C472.3,202 909.2,304 909.2,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="228" font-size="11.5" text-anchor="end" class="mono muted">1M - 2M</text>
+<rect x="120" y="217" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;146.9;146.9;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="272.9" y="228" font-size="11" class="mono dim">228</text>
+<path d="M336.9,224 C456.9,224 914.5,304 914.5,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M336.9,224 C456.9,224 914.5,304 914.5,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="250" font-size="11.5" text-anchor="end" class="mono muted">2M - 5M</text>
+<rect x="120" y="239" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;136.7;136.7;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="262.7" y="250" font-size="11" class="mono dim">156</text>
+<path d="M326.7,246 C446.7,246 917.7,304 917.7,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M326.7,246 C446.7,246 917.7,304 917.7,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="272" font-size="11.5" text-anchor="end" class="mono muted">5M - 10M</text>
+<rect x="120" y="261" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;100.4;100.4;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="226.4" y="272" font-size="11" class="mono dim">40</text>
+<path d="M290.4,268 C410.4,268 919.3,304 919.3,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M290.4,268 C410.4,268 919.3,304 919.3,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="294" font-size="11.5" text-anchor="end" class="mono muted">10M - 20M</text>
+<rect x="120" y="283" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;79.6;79.6;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="205.6" y="294" font-size="11" class="mono dim">18</text>
+<path d="M269.6,290 C389.6,290 919.8,304 919.8,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M269.6,290 C389.6,290 919.8,304 919.8,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="316" font-size="11.5" text-anchor="end" class="mono muted">20M - 50M</text>
+<rect x="120" y="305" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;29.7;29.7;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="155.7" y="316" font-size="11" class="mono dim">2</text>
+<path d="M219.7,312 C339.7,312 920.0,304 920.0,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M219.7,312 C339.7,312 920.0,304 920.0,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="338" font-size="11.5" text-anchor="end" class="mono muted">50M - 100M</text>
+<rect x="120" y="327" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;18.7;18.7;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="144.7" y="338" font-size="11" class="mono dim">1</text>
+<path d="M208.7,334 C328.7,334 920.0,304 920.0,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M208.7,334 C328.7,334 920.0,304 920.0,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<text x="112" y="360" font-size="11.5" text-anchor="end" class="mono muted">100M - 200M</text>
+<rect x="120" y="349" width="0" height="14" rx="3" fill="#a78bfa" opacity="0.85"><animate attributeName="width" values="0;18.7;18.7;0" keyTimes="0;0.15;0.92;1" dur="10s" repeatCount="indefinite"/></rect>
+<text x="144.7" y="360" font-size="11" class="mono dim">1</text>
+<path d="M208.7,356 C328.7,356 920.0,304 920.0,394" stroke="#a78bfa" stroke-opacity="0.18" fill="none"/>
+<circle r="5" fill="#a78bfa" opacity="0"><animateMotion dur="10s" repeatCount="indefinite" keyPoints="0;0;1;1" keyTimes="0;0.2;0.45;1" calcMode="linear" path="M208.7,356 C328.7,356 920.0,304 920.0,394"/><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.18;0.22;0.92;1" dur="10s" repeatCount="indefinite"/></circle>
+<line x1="560" y1="394" x2="920" y2="394" stroke="#8da2c0"/>
+<line x1="560" y1="390" x2="560" y2="398" stroke="#8da2c0"/><text x="560" y="414" font-size="11" text-anchor="middle" class="mono muted">0</text>
+<line x1="650.0" y1="390" x2="650.0" y2="398" stroke="#8da2c0"/><text x="650.0" y="414" font-size="11" text-anchor="middle" class="mono muted">0.25</text>
+<line x1="740.0" y1="390" x2="740.0" y2="398" stroke="#8da2c0"/><text x="740.0" y="414" font-size="11" text-anchor="middle" class="mono muted">0.5</text>
+<line x1="830.0" y1="390" x2="830.0" y2="398" stroke="#8da2c0"/><text x="830.0" y="414" font-size="11" text-anchor="middle" class="mono muted">0.75</text>
+<line x1="920.0" y1="390" x2="920.0" y2="398" stroke="#8da2c0"/><text x="920.0" y="414" font-size="11" text-anchor="middle" class="mono muted">1</text>
+<text x="740.0" y="434" font-size="12" text-anchor="middle" class="muted">rank target y used by XGBRegressor.fit()</text>
+<g opacity="0"><text x="684.38" y="376" font-size="12" text-anchor="middle" style="fill:#38bdf8">69.1% of games share y = 0.345</text><animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.45;0.5;0.92;1" dur="10s" repeatCount="indefinite"/></g>
+<text x="560" y="90" font-size="12.5" class="muted">The top 12 tiers are squeezed into</text>
+<text x="560" y="108" font-size="12.5" class="muted">y in [0.75, 1.00]: the model learns order,</text>
+<text x="560" y="126" font-size="12.5" class="muted">not owner counts, so a 150M-owner outlier</text>
+<text x="560" y="144" font-size="12.5" class="muted">weighs no more than any other top game.</text>
+<text x="24" y="464" font-size="11.5" class="dim">Bar length: log10(count + 1). Owners are SteamSpy ranges, parsed to their midpoint before ranking.</text>
+</svg>
